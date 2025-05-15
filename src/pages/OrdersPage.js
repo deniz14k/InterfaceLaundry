@@ -17,6 +17,8 @@ import {
   useToast,     // Chakra's toast notification
 } from '@chakra-ui/react';
 
+
+
 function OrdersPage() {
 
 
@@ -79,11 +81,17 @@ function OrdersPage() {
       status: newStatus,
     }));
 
-    fetch('https://localhost:7223/api/orders/bulk-update', {
+    const token = localStorage.getItem('token');
+
+    fetch(`https://localhost:7223/api/orders/bulk-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    })
+      headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : ''
+    },
+    body: JSON.stringify(updates),
+      })
+
       .then((res) => {
         if (!res.ok) throw new Error('Bulk update failed');
         return res.text();

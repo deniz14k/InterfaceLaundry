@@ -7,6 +7,9 @@ import OrderDetailsPage from './pages/OrderDetailsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import TopBar from './components/TopBar';
+import PhoneEntryPage  from './pages/PhoneEntryPage';
+import CodeVerifyPage  from './pages/CodeVerifyPage';
+import MyOrdersPage    from './pages/MyOrdersPage';
 
 function App() {
   return (
@@ -27,6 +30,9 @@ function App() {
         <Route path="/order/:id"   element={<OrderDetailsPage />} />
         <Route path="/login"       element={<LoginPage />} />
         <Route path="/register"    element={<RegisterPage />} />
+        <Route path="/phone-login" element={<PhoneEntryPage />} />
+        <Route path="/verify-code" element={<CodeVerifyPage />} />
+        <Route path="/my-orders"   element={<MyOrdersPage />} />
       </Routes>
     </Router>
   );

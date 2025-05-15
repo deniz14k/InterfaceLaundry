@@ -10,6 +10,16 @@ export default function TopBar() {
   return (
     <Flex bg="gray.700" color="white" p={3} align="center">
       <Text fontWeight="bold">🧺 Laundry App</Text>
+      <Button size="sm" variant="ghost" onClick={()=>navigate('/phone-login')}>
+       Phone OTP
+      </Button>
+
+   {user && user.role === 'Customer' && (
+      <Button size="sm" variant="ghost" onClick={()=>navigate('/my-orders')}>
+      My Orders
+      </Button>
+)}
+
       <Spacer />
 
       {user ? (
