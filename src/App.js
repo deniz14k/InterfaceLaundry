@@ -10,7 +10,8 @@ import TopBar from './components/TopBar';
 import PhoneEntryPage  from './pages/PhoneEntryPage';
 import CodeVerifyPage  from './pages/CodeVerifyPage';
 import MyOrdersPage    from './pages/MyOrdersPage';
-//BAGMIASPLA
+import MyOrderDetailsPage  from './pages/MyOrderDetailsPage';
+
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
         <Route path="/phone-login" element={<PhoneEntryPage />} />
         <Route path="/verify-code" element={<CodeVerifyPage />} />
         <Route path="/my-orders"   element={<MyOrdersPage />} />
+        <Route path="/my-orders/:id"      element={<MyOrderDetailsPage />} />
       </Routes>
     </Router>
   );
