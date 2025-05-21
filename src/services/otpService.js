@@ -10,12 +10,12 @@ export async function sendOtp(phone) {
   return await r.json();     // dev build returns {code: '123456'}
 }
 
-export async function verifyOtp(phone, code) {
-  const r = await fetch(`${API}/api/otp/verify`, {
+export async function verifyOtp(phone, code, name) {
+  const res = await fetch(`${API}/api/otp/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, code })
+    body: JSON.stringify({ phone, code, name })
   });
-  if (!r.ok) throw new Error('Bad or expired code');
-  return await r.json();     // { token }
+  if (!res.ok) throw new Error(await res.text() || 'Bad or expired code');
+  return await res.json();  // { token }
 }

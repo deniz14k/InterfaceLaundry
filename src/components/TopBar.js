@@ -19,6 +19,19 @@ export default function TopBar() {
       </Button>
             )}
 
+
+      
+      {user?.role === 'Customer' && (
+        <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => navigate('/create-order')}
+        >
+        New Order
+        </Button>
+            )}
+
+
       {/* 👔 Staff-only “Orders” link */}
       {user && user.role !== 'Customer' && (
         <Button size="sm" variant="ghost" onClick={() => navigate('/')}>

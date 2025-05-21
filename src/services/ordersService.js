@@ -1,4 +1,6 @@
 // src/services/ordersService.js
+
+import { jwtDecode } from "jwt-decode";
 const API_BASE_URL = 'https://localhost:7223';
 
 /** ----------------------------------------------------------------
@@ -31,10 +33,39 @@ export async function getOrderById(id) {
 
 /** ------------------------------- POST create order */
 export async function createOrder(orderData) {
+  // 1️⃣ Grab token + decode
+  const token = localStorage.getItem('token');
+  if (token) {
+    const decoded = jwtDecode(token);
+
+    // 2️⃣ Extract the ASP.NET claim URIs
+    const role = decoded[
+      'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+    ];
+    // NameIdentifier was set to the phone in your OTP flow
+    const phone = decoded[
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+    ];
+    // Name was set to the real customer name
+    const name  = decoded[
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'
+    ];
+
+    // 3️⃣ If it’s a customer, override the form values
+    if (role === 'Customer') {
+      orderData = {
+        ...orderData,
+        customerId:      name,
+        telephoneNumber: phone,
+      };
+    }
+  }
+
+  // 4️⃣ Send to API with authHeaders
   const res = await fetch(`${API_BASE_URL}/api/orders`, {
-    method: 'POST',
+    method:  'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(orderData),
+    body:    JSON.stringify(orderData),
   });
   if (!res.ok) throw new Error('Failed to create order.');
   return res.json();
@@ -59,6 +90,16 @@ export async function deleteOrder(id) {
   });
   if (!res.ok) throw new Error('Failed to delete order.');
   return res;
+}
+
+export async function verifyOtp(phone, code, name) {
+  const r = await fetch(`${API_BASE_URL}/api/otp/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, code, name })
+  });
+  if (!r.ok) throw new Error('Invalid or expired code');
+  return await r.json();   // { token }
 }
 
 /** ------------------------------- GET filtered orders */

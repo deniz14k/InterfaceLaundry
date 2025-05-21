@@ -1,19 +1,16 @@
-// src/CreateOrderForm.js
+// src/pages/CreateCustomerOrderPage.js
 import React, { useState, useContext } from 'react';
-import { createOrder }                from './services/ordersService';
-import { AuthContext }                from './contexts/authContext';
+import { createOrder }           from '../services/ordersService';
+import { AuthContext }           from '../contexts/authContext';  // lowercase a
+import { useNavigate }           from 'react-router-dom';
 
-function CreateOrderForm({ onOrderCreated }) {
+export default function CreateCustomerOrderPage() {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  // only used by staff
-  const [customerId, setCustomerId]         = useState('');
-  const [telephoneNumber, setTelephoneNumber] = useState('');
-
-  // common fields
-  const [serviceType, setServiceType]       = useState('Office');
+  const [serviceType, setServiceType]     = useState('Office');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [observation, setObservation]       = useState('');
+  const [observation, setObservation]     = useState('');
   const [items, setItems] = useState([
     { type: 'Carpet', length: '', width: '' }
   ]);
@@ -39,17 +36,13 @@ function CreateOrderForm({ onOrderCreated }) {
       width:  it.type === 'Carpet' ? parseFloat(it.width)  : null,
     }));
 
+    // Build payload using user.sub and user.phone from JWT
     const newOrder = {
-      // for Customers, pull from JWT; for staff, use form values
-      customerId:      user.role === 'Customer' 
-                        ? user.nameid  // JWT Name claim: their real name 
-                        : customerId,
-      telephoneNumber: user.role === 'Customer' 
-                        ? user.name    // JWT NameIdentifier claim: their phone
-                        : telephoneNumber,
+      customerId:      user.sub,
+      telephoneNumber: user.phone,
       serviceType,
-      deliveryAddress: serviceType === 'PickupDelivery' 
-                        ? deliveryAddress 
+      deliveryAddress: serviceType === 'PickupDelivery'
+                        ? deliveryAddress
                         : null,
       observation,
       status: 'Pending',
@@ -59,7 +52,7 @@ function CreateOrderForm({ onOrderCreated }) {
     try {
       await createOrder(newOrder);
       alert('Order created!');
-      onOrderCreated();
+      navigate('/my-orders');
     } catch (err) {
       console.error(err);
       alert('Failed to create order.');
@@ -69,26 +62,6 @@ function CreateOrderForm({ onOrderCreated }) {
   return (
     <form onSubmit={handleSubmit}>
       <h2>Create New Order</h2>
-
-      {/* 👔 Staff only: set customer + phone */}
-      {user.role !== 'Customer' && (
-        <>
-          <input
-            type="text"
-            placeholder="Customer ID"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Telephone Number"
-            value={telephoneNumber}
-            onChange={(e) => setTelephoneNumber(e.target.value)}
-            required
-          />
-        </>
-      )}
 
       <label>
         Service Type
@@ -102,27 +75,35 @@ function CreateOrderForm({ onOrderCreated }) {
       </label>
 
       {serviceType === 'PickupDelivery' && (
-        <input
-          type="text"
-          placeholder="Delivery Address"
-          value={deliveryAddress}
-          onChange={(e) => setDeliveryAddress(e.target.value)}
-          required
-        />
+        <label>
+          Delivery Address
+          <input
+            type="text"
+            placeholder="Address"
+            value={deliveryAddress}
+            onChange={(e) => setDeliveryAddress(e.target.value)}
+            required
+          />
+        </label>
       )}
 
-      <textarea
-        placeholder="Observation (optional)"
-        value={observation}
-        onChange={(e) => setObservation(e.target.value)}
-      />
+      <label>
+        Observation (optional)
+        <textarea
+          placeholder="Notes…"
+          value={observation}
+          onChange={(e) => setObservation(e.target.value)}
+        />
+      </label>
 
       <h4>Items</h4>
       {items.map((item, idx) => (
         <div key={idx}>
           <select
             value={item.type}
-            onChange={(e) => handleItemChange(idx, 'type', e.target.value)}
+            onChange={(e) =>
+              handleItemChange(idx, 'type', e.target.value)
+            }
           >
             <option value="Carpet">Carpet</option>
             <option value="Blanket">Blanket</option>
@@ -134,20 +115,27 @@ function CreateOrderForm({ onOrderCreated }) {
                 type="number"
                 placeholder="Length"
                 value={item.length}
-                onChange={(e) => handleItemChange(idx, 'length', e.target.value)}
+                onChange={(e) =>
+                  handleItemChange(idx, 'length', e.target.value)
+                }
                 required
               />
               <input
                 type="number"
                 placeholder="Width"
                 value={item.width}
-                onChange={(e) => handleItemChange(idx, 'width', e.target.value)}
+                onChange={(e) =>
+                  handleItemChange(idx, 'width', e.target.value)
+                }
                 required
               />
             </>
           )}
 
-          <button type="button" onClick={() => handleRemoveItem(idx)}>
+          <button
+            type="button"
+            onClick={() => handleRemoveItem(idx)}
+          >
             Remove
           </button>
         </div>
@@ -162,5 +150,3 @@ function CreateOrderForm({ onOrderCreated }) {
     </form>
   );
 }
-
-export default CreateOrderForm;

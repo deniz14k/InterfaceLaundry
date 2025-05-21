@@ -12,6 +12,7 @@ import CodeVerifyPage  from './pages/CodeVerifyPage';
 import MyOrdersPage    from './pages/MyOrdersPage';
 import MyOrderDetailsPage  from './pages/MyOrderDetailsPage';
 import ProtectedRoute  from './components/ProtectedRoute';
+import CreateCustomerOrderPage from './pages/CreateCustomerOrderPage';
 
 
 function App() {
@@ -32,6 +33,8 @@ function App() {
         <Route path="/verify-code" element={<CodeVerifyPage />} />
         <Route path="/my-orders"   element={<MyOrdersPage />} />
         <Route path="/my-orders/:id"      element={<MyOrderDetailsPage />} />
+        <Route path="/create-order" element={<CreateCustomerOrderPage />}
+  />
       </Routes>
     </Router>
   );
