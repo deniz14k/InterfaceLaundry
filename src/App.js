@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route} from 'react-router-dom';
 import OrdersPage from './pages/OrdersPage';
 import CreateOrderPage from './pages/CreateOrderPage';
 import EditOrderPage from './pages/EditOrderPage';
@@ -11,6 +11,7 @@ import PhoneEntryPage  from './pages/PhoneEntryPage';
 import CodeVerifyPage  from './pages/CodeVerifyPage';
 import MyOrdersPage    from './pages/MyOrdersPage';
 import MyOrderDetailsPage  from './pages/MyOrderDetailsPage';
+import ProtectedRoute  from './components/ProtectedRoute';
 
 
 function App() {
@@ -19,14 +20,9 @@ function App() {
       {/*  1️⃣  Top-level bar with Logout / user email  */}
       <TopBar />
 
-      {/*  2️⃣  (optional) keep your old text nav below it  */}
-      <nav style={{ margin: '20px 0' }}>
-        <Link to="/">Orders</Link> | <Link to="/create">New Order</Link>
-      </nav>
-
       {/*  3️⃣  All your routes  */}
       <Routes>
-        <Route path="/"            element={<OrdersPage />} />
+        <Route path="/"            element={<ProtectedRoute roles={['Admin','Manager','Clerk']}> <OrdersPage /></ProtectedRoute>} />
         <Route path="/create"      element={<CreateOrderPage />} />
         <Route path="/edit/:id"    element={<EditOrderPage />} />
         <Route path="/order/:id"   element={<OrderDetailsPage />} />

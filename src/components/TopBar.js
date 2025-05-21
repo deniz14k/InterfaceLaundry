@@ -1,6 +1,6 @@
 import { Flex, Spacer, Button, Text } from '@chakra-ui/react';
 import { useContext } from 'react';
-import { AuthContext } from '../contexts/authContext';
+import { AuthContext } from '../contexts/authContext';  // match your file’s casing
 import { useNavigate } from 'react-router-dom';
 
 export default function TopBar() {
@@ -9,19 +9,33 @@ export default function TopBar() {
 
   return (
     <Flex bg="gray.700" color="white" p={3} align="center">
+      {/* App title */}
       <Text fontWeight="bold">🧺 Laundry App</Text>
-      <Button size="sm" variant="ghost" onClick={()=>navigate('/phone-login')}>
-       Phone OTP
-      </Button>
 
-   {user && user.role === 'Customer' && (
-      <Button size="sm" variant="ghost" onClick={()=>navigate('/my-orders')}>
-      My Orders
+      {/* Always available */}
+      {!user && (
+      <Button size="sm" variant="ghost" onClick={() => navigate('/phone-login')}>
+        Phone OTP
       </Button>
-)}
+            )}
+
+      {/* 👔 Staff-only “Orders” link */}
+      {user && user.role !== 'Customer' && (
+        <Button size="sm" variant="ghost" onClick={() => navigate('/')}>
+          Orders
+        </Button>
+      )}
+
+      {/* 👤 Customer-only “My Orders” link */}
+      {user && user.role === 'Customer' && (
+        <Button size="sm" variant="ghost" onClick={() => navigate('/my-orders')}>
+          My Orders
+        </Button>
+      )}
 
       <Spacer />
 
+      {/* Authentication controls */}
       {user ? (
         <>
           <Text mr={4}>{user.email}</Text>
@@ -29,18 +43,15 @@ export default function TopBar() {
             size="sm"
             colorScheme="orange"
             onClick={() => {
-              logout();           // clear token
-              navigate('/login'); // go to sign-in screen
+              logout();
+              navigate('/login');
             }}
           >
             Log out
           </Button>
         </>
       ) : (
-        <Button
-          size="sm"
-          onClick={() => navigate('/login')}
-        >
+        <Button size="sm" onClick={() => navigate('/login')}>
           Sign in
         </Button>
       )}
