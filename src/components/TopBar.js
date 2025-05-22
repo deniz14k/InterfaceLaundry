@@ -12,6 +12,13 @@ export default function TopBar() {
       {/* App title */}
       <Text fontWeight="bold">🧺 Laundry App</Text>
 
+
+      {/* Greet the customer by name */}
+      {user?.role === 'Customer' && (
+        <Text ml={4}>Hello, {user.name}!</Text>
+      )}
+
+
       {/* Always available */}
       {!user && (
       <Button size="sm" variant="ghost" onClick={() => navigate('/phone-login')}>

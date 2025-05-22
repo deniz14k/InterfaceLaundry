@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.js
+// src/contexts/authContext.js
 import React, { createContext, useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 
@@ -7,26 +7,31 @@ export const AuthContext = createContext();
 function parseToken(token) {
   const decoded = jwtDecode(token);
 
-  // Extract the ASP.NET Identity role claim
-  const role =
-    decoded[
-      "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-    ] || "";
-
   return {
     ...decoded,
-    role,
+    // ASP.NET Identity role claim
+    role: decoded[
+      "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+    ] || null,
+    // NameIdentifier claim holds the phone
+    phone: decoded[
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+    ] || null,
+    // Name claim holds the real user name
+    name: decoded[
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+    ] || null,
   };
 }
 
 export function AuthProvider({ children }) {
-  // initialize from localStorage
   const [token, setToken] = useState(
     () => localStorage.getItem("token") || ""
   );
-  const [user, setUser] = useState(() =>
-    token ? parseToken(token) : null
-  );
+  const [user, setUser] = useState(() => {
+    const tok = localStorage.getItem("token");
+    return tok ? parseToken(tok) : null;
+  });
 
   const login = (newToken) => {
     localStorage.setItem("token", newToken);
@@ -40,7 +45,6 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  // whenever token changes (e.g. page reload), re-parse it
   useEffect(() => {
     if (token) {
       setUser(parseToken(token));

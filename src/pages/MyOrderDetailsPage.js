@@ -1,14 +1,16 @@
 // src/pages/MyOrderDetailsPage.js
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Heading, Text, Table, Thead, Tbody, Tr, Th, Td, Button
 } from '@chakra-ui/react';
+import { AuthContext } from '../contexts/authContext';
 
 export default function MyOrderDetailsPage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
     fetch(`https://localhost:7223/api/orders/my/${id}`, {
@@ -27,6 +29,7 @@ export default function MyOrderDetailsPage() {
   return (
     <Box p={6}>
       <Button mb={4} onClick={() => navigate(-1)}>← Back</Button>
+      <Text fontSize="lg" mb={4}>Hello, {user.name}!</Text>
       <Heading size="lg" mb={2}>Order #{order.id}</Heading>
       <Text>Status: {order.status}</Text>
       <Text>Received: {new Date(order.receivedDate).toLocaleDateString()}</Text>
