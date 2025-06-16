@@ -24,7 +24,7 @@ export default function LoginPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/Account/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) throw new Error('Invalid credentials');

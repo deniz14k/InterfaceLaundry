@@ -13,7 +13,7 @@ import MyOrdersPage    from './pages/MyOrdersPage';
 import MyOrderDetailsPage  from './pages/MyOrderDetailsPage';
 import ProtectedRoute  from './components/ProtectedRoute';
 import CreateCustomerOrderPage from './pages/CreateCustomerOrderPage';
-
+import DriverRoutePage from './pages/DriverRoutePage';
 
 function App() {
   return (
@@ -33,8 +33,10 @@ function App() {
         <Route path="/verify-code" element={<CodeVerifyPage />} />
         <Route path="/my-orders"   element={<MyOrdersPage />} />
         <Route path="/my-orders/:id"      element={<MyOrderDetailsPage />} />
-        <Route path="/create-order" element={<CreateCustomerOrderPage />}
-  />
+        <Route path="/create-order" element={<CreateCustomerOrderPage />}/>
+        <Route path="/driver/route" element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><DriverRoutePage /></ProtectedRoute>} />
+
+        
       </Routes>
     </Router>
   );

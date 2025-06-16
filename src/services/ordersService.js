@@ -1,7 +1,17 @@
 // src/services/ordersService.js
 
 import { jwtDecode } from "jwt-decode";
+import api from './api'; // your configured Axios instance
+
 const API_BASE_URL = 'https://localhost:7223';
+
+
+
+export const getRouteForDate = async (date) => {
+  const res = await api.get(`/planner/route?date=${date}`);
+  return res.data;
+};
+
 
 /** ----------------------------------------------------------------
  *  Helper – always attach JWT if it exists in localStorage
