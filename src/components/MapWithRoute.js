@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { GoogleMap, LoadScript, Polyline } from '@react-google-maps/api';
+import polyline from '@mapbox/polyline';
+
 
 const containerStyle = {
   width: '100%',
@@ -14,19 +16,18 @@ const center = {
 };
 
 const decodePolyline = (encoded) => {
-  const polyline = require('@mapbox/polyline');
   return polyline.decode(encoded).map(([lat, lng]) => ({ lat, lng }));
 };
 
 const MapWithRoute = ({ route }) => {
   const path = decodePolyline(route.polyline.encodedPolyline);
 
+  console.log('GOOGLE KEY:', process.env.REACT_APP_GOOGLE_MAPS_KEY); // This will log correctly
+
   return (
-    <LoadScript googleMapsApiKey="AIzaSyCh_391r0q8Yw_00R4wgRdAeDEzEvNNhck">
+    <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_KEY}>
       <GoogleMap mapContainerStyle={containerStyle} center={path[0] || center} zoom={13}>
         <Polyline path={path} options={{ strokeColor: '#FF0000', strokeWeight: 4 }} />
-        console.log('GOOGLE KEY:', process.env.REACT_APP_GOOGLE_MAPS_KEY);
-
       </GoogleMap>
     </LoadScript>
   );
