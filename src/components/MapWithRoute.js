@@ -1,3 +1,4 @@
+// src/components/MapWithRoute.js
 import React from 'react';
 import { GoogleMap, LoadScript, Polyline, Marker } from '@react-google-maps/api';
 import polyline from '@mapbox/polyline';
@@ -19,6 +20,10 @@ const MapWithRoute = ({ route, stops = [] }) => {
     console.log("❌ No polyline provided in route.");
     return <p>Loading map...</p>;
   }
+
+  console.log("✅ Route received:", route);
+  console.log("✅ Stops:", stops);
+  console.log("✅ Decoded polyline path:", path);
 
   return (
     <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_KEY}>
