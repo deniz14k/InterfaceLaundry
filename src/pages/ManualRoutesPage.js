@@ -1,102 +1,114 @@
 // src/pages/ManualRoutesPage.js
 import React, { useEffect, useState } from 'react';
-import {
-  getEligibleOrders,
-  getAllRoutes,
-  createRoute,
-  getRouteById,
-  markOrderCompleted
-} from '../services/RouteService';
-
+import { getEligibleOrders, createRoute, autoGenerateRoute } from '../services/RouteService';
 import { useNavigate } from 'react-router-dom';
 
 export default function ManualRoutesPage() {
-  const navigate = useNavigate();
   const [eligibleOrders, setEligibleOrders] = useState([]);
-  const [allRoutes, setAllRoutes] = useState([]);
-  const [selectedOrderIds, setSelectedOrderIds] = useState(new Set());
-  const [driverName, setDriverName] = useState('');
-  const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'automatic'
+  const [selectedIds,   setSelectedIds]   = useState([]);
+  const [driverName,    setDriverName]    = useState('');
+  const [date,          setDate]          = useState(new Date().toISOString().split('T')[0]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // load eligible orders and existing routes
-    getEligibleOrders().then(setEligibleOrders);
-    getAllRoutes().then(setAllRoutes);
+    // încarcă comenzile eligibile
+    getEligibleOrders().then(setEligibleOrders).catch(console.error);
   }, []);
 
-  const toggleOrder = (id) => {
-    setSelectedOrderIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Comportament buton AUTO
+  const handleAuto = async () => {
+    try {
+      const { id: routeId } = await autoGenerateRoute({ date, driverName });
+      navigate(`/driver/route/${routeId}`);
+    } catch (e) {
+      alert('Eroare la generarea automată: ' + e.message);
+    }
   };
 
-  const handleCreateManual = async () => {
-    if (!driverName || selectedOrderIds.size < 2) {
-      alert('Introduceți nume șofer și selectați cel puțin 2 comenzi.');
+  // Comportament buton MANUAL
+  const handleManual = async () => {
+    if (selectedIds.length < 2) {
+      alert('Selectează măcar două comenzi.');
       return;
     }
-    const request = { driverName, orderIds: Array.from(selectedOrderIds) };
-    const { id: newRouteId } = await createRoute(request);
-    navigate(`/driver/route/${newRouteId}`);
+    try {
+      const { id: routeId } = await createRoute({ driverName, orderIds: selectedIds });
+      navigate(`/driver/route/${routeId}`);
+    } catch (e) {
+      alert('Eroare la crearea manuală: ' + e.message);
+    }
   };
 
-  const handleGenerateAutomatic = () => {
-    // For automatic generation, navigate to planner page
-    navigate('/planner/automatic');
-  };
+  // toggle selecție
+  const toggle = id =>
+    setSelectedIds(s =>
+      s.includes(id) ? s.filter(x => x !== id) : [...s, id]
+    );
 
   return (
-    <div className="manual-routes-page p-4">
-      <h2>Planificare rute</h2>
-      <div className="tabs my-4">
-        <button onClick={() => setActiveTab('manual')} className={activeTab==='manual'?'active':''}>Manuală</button>
-        <button onClick={() => setActiveTab('automatic')} className={activeTab==='automatic'?'active':''}>Automată</button>
-      </div>
+    <div style={{ padding: '1rem' }}>
+      <h2>🛠️ Manual & Automat</h2>
 
-      {activeTab === 'manual' ? (
-        <div>
-          <div className="driver-input mb-4">
-            <label>Nume șofer:</label>
-            <input type="text" value={driverName} onChange={e => setDriverName(e.target.value)} />
-          </div>
-          <table className="eligible-orders-table w-full mb-4">
-            <thead>
-              <tr><th>Select</th><th>ID</th><th>Client</th><th>Adresa</th><th>Telefon</th><th>Data</th></tr>
-            </thead>
-            <tbody>
-              {eligibleOrders.map(o => (
-                <tr key={o.id}>
-                  <td><input type="checkbox" onChange={() => toggleOrder(o.id)} /></td>
-                  <td>{o.id}</td>
-                  <td>{o.customerId}</td>
-                  <td>{o.deliveryAddress}</td>
-                  <td>{o.telephoneNumber}</td>
-                  <td>{new Date(o.receivedDate).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button onClick={handleCreateManual} className="btn btn-primary">Creează rută manuală</button>
+      <section style={{ marginBottom: '2rem' }}>
+        <h3>▶️ Generare automată</h3>
+        <label>
+          Data ruta:{' '}
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+          />
+        </label>
+        <label style={{ marginLeft: '1rem' }}>
+          Șofer:{' '}
+          <input
+            type="text"
+            placeholder="Nume șofer"
+            value={driverName}
+            onChange={e => setDriverName(e.target.value)}
+          />
+        </label>
+        <button
+          onClick={handleAuto}
+          style={{ marginLeft: '1rem', padding: '0.5em 1em' }}
+        >
+          Generează automat
+        </button>
+      </section>
+
+      <section>
+        <h3>✍️ Creare manuală</h3>
+        <p>Selectează comenzile pe care vrei să le pui în rută:</p>
+        <div style={{ maxHeight: 300, overflowY: 'scroll', border: '1px solid #ddd', padding: 10 }}>
+          {eligibleOrders.map(o => (
+            <label key={o.id} style={{ display: 'block', marginBottom: 4 }}>
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(o.id)}
+                onChange={() => toggle(o.id)}
+              />{' '}
+              [{o.id}] {o.deliveryAddress} — {o.telephoneNumber}
+            </label>
+          ))}
         </div>
-      ) : (
-        <div>
-          <p>Generare automată rute pentru ziua curentă.</p>
-          <button onClick={handleGenerateAutomatic} className="btn btn-secondary">Generează automat</button>
-          {allRoutes.length > 0 && (
-            <ul className="routes-list mt-4">
-              {allRoutes.map(r => (
-                <li key={r.id}>
-                  Rută #{r.id} - Șofer: {r.driverName} ({new Date(r.createdAt).toLocaleString()})
-                  <button onClick={() => navigate(`/driver/route/${r.id}`)}>Vizualizează</button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div style={{ marginTop: '1rem' }}>
+          <label>
+            Șofer:{' '}
+            <input
+              type="text"
+              placeholder="Nume șofer"
+              value={driverName}
+              onChange={e => setDriverName(e.target.value)}
+            />
+          </label>
+          <button
+            onClick={handleManual}
+            style={{ marginLeft: '1rem', padding: '0.5em 1em' }}
+          >
+            Crează rută manuală
+          </button>
         </div>
-      )}
+      </section>
     </div>
   );
 }

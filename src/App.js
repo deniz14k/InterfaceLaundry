@@ -15,6 +15,7 @@ import ProtectedRoute  from './components/ProtectedRoute';
 import CreateCustomerOrderPage from './pages/CreateCustomerOrderPage';
 import DriverRoutePage from './pages/DriverRoutePage';
 import ManualRoutesPage from './pages/ManualRoutesPage';
+import RoutesListPage    from './pages/RoutesListPage';
 
 
 function App() {
@@ -36,10 +37,7 @@ function App() {
         <Route path="/my-orders"   element={<MyOrdersPage />} />
         <Route path="/my-orders/:id"      element={<MyOrderDetailsPage />} />
         <Route path="/create-order" element={<CreateCustomerOrderPage />}/>
-           <Route  path="/driver/route/:routeId"element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><DriverRoutePage /></ProtectedRoute>
-  }
-/>
-
+           <Route  path="/driver/route/:routeId"element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><DriverRoutePage /></ProtectedRoute>}/>
 
          <Route
   path="/routes/manual"
@@ -49,6 +47,13 @@ function App() {
     </ProtectedRoute>
   }
 />
+
+<Route path="/routes" element={
+          <ProtectedRoute roles={['Admin','Manager']}>
+            <RoutesListPage />
+          </ProtectedRoute>
+      }/>
+
 
 
         

@@ -3,6 +3,30 @@
 import { jwtDecode } from "jwt-decode";  // dacă ai nevoie de decode la token, altfel poţi elimina
 const API_BASE_URL = 'https://localhost:7223';
 
+
+
+// DELETE rută
+export async function deleteRoute(routeId) {
+  const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export async function autoGenerateRoute({ date, driverName }) {
+  const res = await fetch(`${API_BASE_URL}/api/planner/auto-generate`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ date, driverName })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+
+
+
 /** Helper – atașează JWT la header */
 function authHeaders(extra = {}) {
   const token = localStorage.getItem('token');
