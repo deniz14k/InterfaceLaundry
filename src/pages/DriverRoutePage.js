@@ -1,80 +1,82 @@
 // src/pages/DriverRoutePage.js
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import MapWithRoute from '../components/MapWithRoute';
-import { getRouteById, markOrderCompleted } from '../services/RouteService';
-
-function buildMobileRouteURL(points) {
-  return `https://www.google.com/maps/dir/${points.map(p => `${p.lat},${p.lng}`).join('/')}`;
-}
+import { useParams }                          from 'react-router-dom';
+import MapWithRoute                            from '../components/MapWithRoute';
+import { getRouteById, markOrderCompleted }    from '../services/RouteService';
 
 export default function DriverRoutePage() {
   const { routeId } = useParams();
-  const [routePolyline, setRoutePolyline] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [coords, setCoords] = useState([]);
-  const [totalPrice, setTotalPrice] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [encodedPolyline, setEncodedPolyline] = useState('');
+  const [orders, setOrders] = useState([]);
+  const [totalPrice, setTotalPrice] = useState(0);
+
+  // coordonatele sediului
+  const HQ = { lat: 46.517151, lng: 24.5223398 };
 
   useEffect(() => {
-  if (!routeId) return;
-  setLoading(true);
-  getRouteById(routeId)
-    .then(data => {
-      console.log('🚀 Route data from API:', data);
-      setOrders(data.orders);
-      setCoords(data.orders.map(o => ({ lat: o.lat, lng: o.lng })));
-      setRoutePolyline(data.polyline);
-      setTotalPrice(data.orders.reduce((sum, o) => sum + (o.price || 0), 0));
-    })
-    .catch(err => alert('Nu am putut încărca ruta.'))
-    .finally(() => setLoading(false));
-}, [routeId]);
+    if (!routeId) return;
+    setLoading(true);
+
+    getRouteById(routeId)
+      .then(data => {
+        // aici data.polyline este stringul cu encodedPolyline
+        setEncodedPolyline(data.polyline);
+        // data.orders e lista cu { index, id, lat, lng, address, phone, price, customer, isCompleted }
+        setOrders(data.orders);
+        setTotalPrice(data.orders.reduce((sum, o) => sum + (o.price||0), 0));
+      })
+      .catch(() => alert('Nu am putut încărca ruta.'))
+      .finally(() => setLoading(false));
+  }, [routeId]);
 
   const handleMarkCompleted = (orderId) => {
     markOrderCompleted(routeId, orderId)
       .then(() => {
         setOrders(prev =>
-          prev.map(o => o.id === orderId ? { ...o, isCompleted: true } : o)
+          prev.map(o =>
+            o.id === orderId ? { ...o, isCompleted: true } : o
+          )
         );
       })
-      .catch(err => {
-        console.error('Error marking completed:', err);
-        alert('Nu am putut marca comanda ca finalizată.');
-      });
+      .catch(() => alert('Nu am putut marca comanda ca finalizată.'));
   };
 
-  if (loading) {
-    return <p>Se încarcă ruta...</p>;
-  }
+  if (loading) return <p>Se încarcă ruta…</p>;
 
   return (
     <div style={{ padding: '1rem' }}>
       <h2>🗺️ Driver Route Planner</h2>
 
-      {routePolyline
-        ? <MapWithRoute encodedPolyline={routePolyline} stops={coords} />
+      {encodedPolyline
+        ? (
+          <MapWithRoute
+            encodedPolyline={encodedPolyline}
+            stops={orders.map(o => ({ lat: o.lat, lng: o.lng }))}
+            headquarters={HQ}
+          />
+        )
         : <p>Nu există polilinie pentru această rută.</p>
       }
 
-      {coords.length > 0 && (
+      {orders.length > 0 && (
         <div style={{ margin: '1rem 0' }}>
           <h3>💰 Total route value: {totalPrice} RON</h3>
           <a
-            href={buildMobileRouteURL(coords)}
+            href={`https://www.google.com/maps/dir/${[HQ, ...orders.map(o=>({lat:o.lat,lng:o.lng})), HQ]
+              .map(p=>`${p.lat},${p.lng}`)
+              .join('/')}`}
             target="_blank"
             rel="noopener noreferrer"
           >
-            <button
-              style={{
-                background: 'green',
-                color: 'white',
-                padding: '10px',
-                border: 'none',
-                borderRadius: '4px'
-              }}
-            >
+            <button style={{
+              background: 'green',
+              color: 'white',
+              padding: '10px',
+              border: 'none',
+              borderRadius: '4px'
+            }}>
               🚚 Navigate Entire Route
             </button>
           </a>
@@ -82,16 +84,13 @@ export default function DriverRoutePage() {
       )}
 
       {orders.map(order => (
-        <div
-          key={order.id}
-          style={{
-            border: '1px solid #ccc',
-            borderRadius: '8px',
-            padding: '1rem',
-            marginBottom: '1rem',
-            backgroundColor: order.isCompleted ? '#e0ffe0' : 'white'
-          }}
-        >
+        <div key={order.id} style={{
+          border: '1px solid #ccc',
+          borderRadius: '8px',
+          padding: '1rem',
+          marginBottom: '1rem',
+          backgroundColor: order.isCompleted ? '#e0ffe0' : 'white'
+        }}>
           <h4>📍 Stop {order.index}</h4>
           <p><strong>Customer:</strong> {order.customer}</p>
           <p><strong>Address:</strong> {order.address}</p>
@@ -121,9 +120,7 @@ export default function DriverRoutePage() {
         </div>
       ))}
 
-      {orders.length === 0 && (
-        <p>Nu există comenzi pe această rută.</p>
-      )}
+      {orders.length === 0 && <p>Nu există comenzi pe această rută.</p>}
     </div>
   );
 }
