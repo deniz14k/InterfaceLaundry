@@ -1,75 +1,81 @@
 // src/pages/DriverRoutePage.js
 
 import React, { useEffect, useState } from 'react';
-import { useParams }                          from 'react-router-dom';
-import MapWithRoute                            from '../components/MapWithRoute';
-import { getRouteById, markOrderCompleted }    from '../services/RouteService';
+import { useParams } from 'react-router-dom';
+import MapWithRoute from '../components/MapWithRoute';
+import {
+  getRouteById,
+  markOrderCompleted,
+  startRoute,
+  stopRoute,
+  reportTracking
+} from '../services/RouteService';
 
 export default function DriverRoutePage() {
   const { routeId } = useParams();
   const [loading, setLoading] = useState(true);
   const [encodedPolyline, setEncodedPolyline] = useState('');
+  const [stops, setStops] = useState([]);
   const [orders, setOrders] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [routeStarted, setRouteStarted] = useState(false);
+  const [watchId, setWatchId] = useState(null);
 
-  // coordonatele sediului
   const HQ = { lat: 46.7551903, lng: 23.5665899 };
 
+  // 1️⃣ Load route details once
   useEffect(() => {
-  if (!routeId) return;
+    if (!routeId) return;
+    setLoading(true);
 
-  // “watchId” starts out null; we’ll overwrite with the geolocation ID
-  let watchId = null;
+    getRouteById(routeId)
+      .then(data => {
+        setEncodedPolyline(data.polyline);
+        setStops(data.orders.map(o => ({ lat: o.lat, lng: o.lng })));
+        setOrders(data.orders);
+        setTotalPrice(data.orders.reduce((sum, o) => sum + (o.price || 0), 0));
+        setRouteStarted(data.isStarted); // if your API returns an `isStarted` flag
+      })
+      .catch(() => alert('Nu am putut încărca ruta.'))
+      .finally(() => setLoading(false));
+  }, [routeId]);
 
-  // 1️⃣ Load the route
-  setLoading(true);
-  getRouteById(routeId)
-    .then(data => {
-      setEncodedPolyline(data.polyline);
-      setOrders(data.orders);
-      setTotalPrice(data.orders.reduce((sum, o) => sum + (o.price || 0), 0));
-    })
-    .catch(() => alert('Nu am putut încărca ruta.'))
-    .finally(() => setLoading(false));
-
-  // 2️⃣ Start live-tracking
-  if (navigator.geolocation) {
-    watchId = navigator.geolocation.watchPosition(
-      pos => {
-        fetch('/api/tracking/report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            routeId: parseInt(routeId, 10),
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          })
-        });
-      },
-      err => console.warn('Geo-watch error:', err),
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5000
-      }
-    );
-  }
-
-  // 3️⃣ Cleanup when unmounting
-  return () => {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
+  // 2️⃣ When route is started, begin watching position
+  useEffect(() => {
+    if (routeStarted && routeId && navigator.geolocation) {
+      const id = navigator.geolocation.watchPosition(
+        pos => {
+          reportTracking(routeId, pos.coords.latitude, pos.coords.longitude)
+            .catch(console.error);
+        },
+        err => console.error(err),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+      );
+      setWatchId(id);
     }
-  };
-}, [routeId]);
+    // cleanup
+    return () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    };
+  }, [routeStarted, routeId]);
 
+  const handleStart = () => {
+    startRoute(routeId)
+      .then(() => setRouteStarted(true))
+      .catch(() => alert('Failed to start route'));
+  };
+
+  const handleStop = () => {
+    stopRoute(routeId)
+      .then(() => setRouteStarted(false))
+      .catch(() => alert('Failed to stop route'));
+  };
 
   const handleMarkCompleted = (orderId) => {
     markOrderCompleted(routeId, orderId)
       .then(() => {
         setOrders(prev =>
-          prev.map(o =>
-            o.id === orderId ? { ...o, isCompleted: true } : o
-          )
+          prev.map(o => (o.id === orderId ? { ...o, isCompleted: true } : o))
         );
       })
       .catch(() => alert('Nu am putut marca comanda ca finalizată.'));
@@ -81,23 +87,29 @@ export default function DriverRoutePage() {
     <div style={{ padding: '1rem' }}>
       <h2>🗺️ Driver Route Planner</h2>
 
+      {/* Start / Stop buttons */}
+      {!routeStarted
+        ? <button onClick={handleStart}>▶️ Start Route</button>
+        : <button onClick={handleStop}>⏸️ Stop Route</button>
+      }
+
+      {/* Map */}
       {encodedPolyline
-        ? (
-          <MapWithRoute
+        ? <MapWithRoute
             encodedPolyline={encodedPolyline}
-            stops={orders.map(o => ({ lat: o.lat, lng: o.lng }))}
+            stops={stops}
             headquarters={HQ}
           />
-        )
         : <p>Nu există polilinie pentru această rută.</p>
       }
 
-      {orders.length > 0 && (
+      {/* Navigate whole route */}
+      {stops.length > 0 && (
         <div style={{ margin: '1rem 0' }}>
           <h3>💰 Total route value: {totalPrice} RON</h3>
           <a
-            href={`https://www.google.com/maps/dir/${[HQ, ...orders.map(o=>({lat:o.lat,lng:o.lng})), HQ]
-              .map(p=>`${p.lat},${p.lng}`)
+            href={`https://www.google.com/maps/dir/${[HQ, ...stops, HQ]
+              .map(p => `${p.lat},${p.lng}`)
               .join('/')}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -115,6 +127,7 @@ export default function DriverRoutePage() {
         </div>
       )}
 
+      {/* Stop list */}
       {orders.map(order => (
         <div key={order.id} style={{
           border: '1px solid #ccc',
@@ -142,7 +155,7 @@ export default function DriverRoutePage() {
             </a>
             {!order.isCompleted && (
               <button
-                onClick={() => handleMarkCompleted(order.id)}
+                onClick={() => markOrderCompleted(order.id)}
                 style={{ backgroundColor: '#007bff', color: 'white' }}
               >
                 ✅ Mark as Done

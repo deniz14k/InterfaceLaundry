@@ -1,5 +1,4 @@
 // src/pages/MyOrderDetailsPage.js
-
 import React, { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -19,16 +18,21 @@ import { LoadScript, GoogleMap, Marker, Polyline, DistanceMatrixService } from '
 import { AuthContext } from '../contexts/authContext';
 
 const MAP_LIBRARIES = ['places'];
+const HQ = { lat: 46.7551903, lng: 23.5665899 };
 
 export default function MyOrderDetailsPage() {
   const { id } = useParams();
-  const [order, setOrder] = useState(null);
-  const [driverLoc, setDriverLoc] = useState(null);
-  const [eta, setEta] = useState('');
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
-  // 1️⃣ Load order
+  const [order, setOrder]             = useState(null);
+  const [routeId, setRouteId]         = useState(null);
+  const [routeStarted, setRouteStarted] = useState(false);
+  const [driverLoc, setDriverLoc]     = useState(null);
+  const [eta, setEta]                 = useState('');
+  const [loading, setLoading]         = useState(true);
+
+  // 1️⃣ Fetch the order + route metadata
   useEffect(() => {
     fetch(`https://localhost:7223/api/orders/my/${id}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -37,31 +41,44 @@ export default function MyOrderDetailsPage() {
         if (!r.ok) throw new Error('Not found');
         return r.json();
       })
-      .then(setOrder)
-      .catch(() => navigate('/my-orders'));
+      .then(o => {
+        setOrder(o);
+        setRouteId(o.RouteId);
+        setRouteStarted(o.RouteStarted);
+      })
+      .catch(() => navigate('/my-orders'))
+      .finally(() => setLoading(false));
   }, [id, navigate]);
 
-  // 2️⃣ Get driver’s current location
+  // 2️⃣ Poll the driver's latest position every 5s once routeStarted
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      pos => setDriverLoc({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude
-      }),
-      () => console.warn('Geolocation permission denied.')
-    );
-  }, []);
+    if (!routeStarted || !routeId) return;
+    const interval = setInterval(() => {
+      fetch(`https://localhost:7223/api/tracking/${routeId}/latest`)
+        .then(r => {
+          if (r.status === 204) return null;      // no tracking yet
+          if (!r.ok) throw new Error();
+          return r.json();
+        })
+        .then(loc => {
+          if (loc) setDriverLoc({ lat: loc.lat, lng: loc.lng });
+        })
+        .catch(console.error);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [routeStarted, routeId]);
 
-  // 3️⃣ Callback from DistanceMatrixService
+  // 3️⃣ Distance‐Matrix callback
   const handleMatrix = (response, status) => {
-    if (status === 'OK'
-        && response.rows[0].elements[0].status === 'OK') {
+    if (
+      status === 'OK' &&
+      response.rows[0].elements[0].status === 'OK'
+    ) {
       setEta(response.rows[0].elements[0].duration.text);
     }
   };
 
-  if (!order) {
+  if (loading) {
     return (
       <Box p={6} textAlign="center">
         <Spinner size="lg" /> <Text>Loading order…</Text>
@@ -69,7 +86,6 @@ export default function MyOrderDetailsPage() {
     );
   }
 
-  // Only for delivery orders do we have a map/ETA
   const isDelivery = order.serviceType === 'PickupDelivery';
   const customerLatLng = isDelivery && {
     lat: order.deliveryLatitude,
@@ -80,6 +96,7 @@ export default function MyOrderDetailsPage() {
     <Box p={6}>
       <Button mb={4} onClick={() => navigate(-1)}>← Back</Button>
       <Text fontSize="lg" mb={4}>Hello, {user.name}!</Text>
+
       <Heading size="lg" mb={2}>Order #{order.id}</Heading>
       <Text>Status: {order.status}</Text>
       <Text>Received: {new Date(order.receivedDate).toLocaleString()}</Text>
@@ -117,33 +134,34 @@ export default function MyOrderDetailsPage() {
         Total: {order.items.reduce((sum, i) => sum + i.price, 0)} RON
       </Heading>
 
-      {/* ➡️ ESTIMATED ARRIVAL & MAP */}
-      {isDelivery && driverLoc && customerLatLng && (
+      {/* ➡️ Only once driver has hit “Start Route” */}
+      {isDelivery && routeStarted && driverLoc && customerLatLng && (
         <>
-          <Heading size="md" mt={6} mb={2}>Estimated Arrival: {eta || '…calculating'}</Heading>
+          <Heading size="md" mt={6} mb={2}>
+            Estimated Arrival: {eta || '…calculating'}
+          </Heading>
 
           <LoadScript
             googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_KEY}
             libraries={MAP_LIBRARIES}
           >
-            {/* Distance Matrix */}
+            {/* kick off ETA calc */}
             <DistanceMatrixService
               options={{
-                origins: [driverLoc],
+                origins:      [driverLoc],
                 destinations: [customerLatLng],
-                travelMode: 'DRIVE'
+                travelMode:   'DRIVE'
               }}
               callback={handleMatrix}
             />
 
             <GoogleMap
               mapContainerStyle={{ width: '100%', height: '300px' }}
-              center={customerLatLng}
+              center={driverLoc}
               zoom={12}
             >
               <Marker position={driverLoc} label="🚗" />
               <Marker position={customerLatLng} label="📍" />
-
               <Polyline
                 path={[driverLoc, customerLatLng]}
                 options={{ strokeColor: '#007aff', strokeWeight: 2 }}
@@ -151,6 +169,13 @@ export default function MyOrderDetailsPage() {
             </GoogleMap>
           </LoadScript>
         </>
+      )}
+
+      {/* if route not started yet */}
+      {isDelivery && !routeStarted && (
+        <Text mt={6} color="gray.500">
+          The driver has not yet started their route.
+        </Text>
       )}
     </Box>
   );

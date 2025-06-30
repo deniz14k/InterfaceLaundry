@@ -4,8 +4,73 @@ import { jwtDecode } from "jwt-decode";  // dacă ai nevoie de decode la token, 
 const API_BASE_URL = 'https://localhost:7223';
 
 
+function authHeaders() {
+  const token = localStorage.getItem('token');
+  return token
+    ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+    : { 'Content-Type': 'application/json' };
+}
 
 
+
+export async function startRoute(routeId) {
+  const res = await fetch(
+    `${API_BASE_URL}/api/deliveryroute/${routeId}/start`,
+    {
+      method: 'POST',
+      headers: authHeaders()
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to start route: ${res.status} ${text}`);
+  }
+  // no JSON body coming back on a 204
+  return;
+}
+
+export async function stopRoute(routeId) {
+  const res = await fetch(
+    `${API_BASE_URL}/api/deliveryroute/${routeId}/stop`,
+    {
+      method: 'POST',
+      headers: authHeaders()
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to stop route: ${res.status} ${text}`);
+  }
+  return;
+}
+
+export async function reportTracking(routeId, lat, lng) {
+  // we don’t need the JSON response here
+  await fetch(
+    `${API_BASE_URL}/api/tracking/report`,
+    {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ routeId, lat, lng })
+    }
+  );
+}
+
+
+
+
+
+
+
+/** ------------------------------- GET latest driver position for a route */
+export async function getTrackingLatest(routeId) {
+  const res = await fetch(`${API_BASE_URL}/api/tracking/${routeId}/latest`, {
+    headers: authHeaders()
+  });
+  if (res.status === 204) return null;     // not started yet
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();  // { lat, lng, timestamp }
+}
 
 
 
@@ -30,15 +95,6 @@ export async function autoGenerateRoute({ date, driverName }) {
 }
 
 
-
-
-/** Helper – atașează JWT la header */
-function authHeaders(extra = {}) {
-  const token = localStorage.getItem('token');
-  return token
-    ? { Authorization: `Bearer ${token}`, ...extra }
-    : { ...extra };
-}
 
 /** ------------------------------- GET comenzile eligibile */
 export async function getEligibleOrders() {
