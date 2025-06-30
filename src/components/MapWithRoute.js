@@ -5,7 +5,7 @@ import { GoogleMap, LoadScript, Polyline, Marker } from '@react-google-maps/api'
 import polyline from '@mapbox/polyline';
 
 const containerStyle = { width: '100%', height: '500px' };
-const defaultCenter   = { lat: 46.77, lng: 23.6 };
+const defaultCenter   = { lat: 46.7551903, lng: 23.5665899 };
 
 export default function MapWithRoute({ encodedPolyline, stops = [], headquarters }) {
   if (!encodedPolyline) {

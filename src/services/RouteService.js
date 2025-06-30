@@ -5,6 +5,11 @@ const API_BASE_URL = 'https://localhost:7223';
 
 
 
+
+
+
+
+
 // DELETE rută
 export async function deleteRoute(routeId) {
   const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}`, {

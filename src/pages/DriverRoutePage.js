@@ -13,23 +13,55 @@ export default function DriverRoutePage() {
   const [totalPrice, setTotalPrice] = useState(0);
 
   // coordonatele sediului
-  const HQ = { lat: 46.517151, lng: 24.5223398 };
+  const HQ = { lat: 46.7551903, lng: 23.5665899 };
 
   useEffect(() => {
-    if (!routeId) return;
-    setLoading(true);
+  if (!routeId) return;
 
-    getRouteById(routeId)
-      .then(data => {
-        // aici data.polyline este stringul cu encodedPolyline
-        setEncodedPolyline(data.polyline);
-        // data.orders e lista cu { index, id, lat, lng, address, phone, price, customer, isCompleted }
-        setOrders(data.orders);
-        setTotalPrice(data.orders.reduce((sum, o) => sum + (o.price||0), 0));
-      })
-      .catch(() => alert('Nu am putut încărca ruta.'))
-      .finally(() => setLoading(false));
-  }, [routeId]);
+  // “watchId” starts out null; we’ll overwrite with the geolocation ID
+  let watchId = null;
+
+  // 1️⃣ Load the route
+  setLoading(true);
+  getRouteById(routeId)
+    .then(data => {
+      setEncodedPolyline(data.polyline);
+      setOrders(data.orders);
+      setTotalPrice(data.orders.reduce((sum, o) => sum + (o.price || 0), 0));
+    })
+    .catch(() => alert('Nu am putut încărca ruta.'))
+    .finally(() => setLoading(false));
+
+  // 2️⃣ Start live-tracking
+  if (navigator.geolocation) {
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        fetch('/api/tracking/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            routeId: parseInt(routeId, 10),
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          })
+        });
+      },
+      err => console.warn('Geo-watch error:', err),
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000
+      }
+    );
+  }
+
+  // 3️⃣ Cleanup when unmounting
+  return () => {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+  };
+}, [routeId]);
+
 
   const handleMarkCompleted = (orderId) => {
     markOrderCompleted(routeId, orderId)
