@@ -11,6 +11,7 @@ import {
   HStack,
   useToast
 } from '@chakra-ui/react';
+import { useJsApiLoader } from '@react-google-maps/api';
 import MapWithRoute from '../components/MapWithRoute';
 import {
   getRouteById,
@@ -35,11 +36,18 @@ export default function DriverRoutePage() {
 
   const [pendingOrders, setPendingOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [isOptimized, setIsOptimized] = useState(false);
 
   // HQ coordinates
   const HQ = { lat: 46.7551903, lng: 23.5665899 };
 
-  // Refresh route data from API
+  // Load Google Maps JS API once
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_KEY,
+    libraries: ['places']
+  });
+
+  // Fetch the route details from backend
   const refreshRoute = () => {
     if (!routeId) return;
     setLoading(true);
@@ -48,12 +56,15 @@ export default function DriverRoutePage() {
         setEncodedPolyline(data.polyline);
         setOrders(data.orders);
         setRouteStarted(data.isStarted);
+        setIsOptimized(false);            // mark that we need to re-optimize
       })
-      .catch(() => toast({ status: 'error', title: 'Could not load route' }))
+      .catch(() => {
+        toast({ status: 'error', title: 'Could not load route' });
+      })
       .finally(() => setLoading(false));
   };
 
-  // Initial load
+  // Initial load: route + eligible orders
   useEffect(() => {
     refreshRoute();
     getEligibleOrders()
@@ -61,14 +72,11 @@ export default function DriverRoutePage() {
       .catch(() => console.error('Failed to load eligible orders'));
   }, [routeId]);
 
-  // GPS tracking
+  // GPS tracking when route is started
   useEffect(() => {
     if (routeStarted && routeId && navigator.geolocation) {
       const id = navigator.geolocation.watchPosition(
-        pos =>
-          reportTracking(routeId, pos.coords.latitude, pos.coords.longitude).catch(
-            console.error
-          ),
+        pos => reportTracking(routeId, pos.coords.latitude, pos.coords.longitude).catch(console.error),
         err => console.error('GPS error', err),
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
       );
@@ -79,7 +87,7 @@ export default function DriverRoutePage() {
     };
   }, [routeStarted, routeId]);
 
-  // Handlers
+  // CRUD handlers
   const handleStart = () => {
     startRoute(routeId)
       .then(() => {
@@ -129,6 +137,32 @@ export default function DriverRoutePage() {
       .catch(() => toast({ status: 'error', title: 'Could not add order' }));
   };
 
+  // Once Maps API is loaded and we haven't yet optimized, do one DirectionsService request
+  useEffect(() => {
+    if (!isLoaded || isOptimized || orders.length === 0) return;
+    const service = new window.google.maps.DirectionsService();
+    service.route(
+      {
+        origin: HQ,
+        destination: HQ,
+        waypoints: orders.map(o => ({
+          location: { lat: o.lat, lng: o.lng },
+          stopover: true
+        })),
+        optimizeWaypoints: true,
+        travelMode: 'DRIVING'
+      },
+      (response, status) => {
+        if (status === 'OK' && response.routes.length) {
+          const seq = response.routes[0].waypoint_order;
+          // reorder orders array
+          setOrders(seq.map(i => orders[i]));
+          setIsOptimized(true);
+        }
+      }
+    );
+  }, [isLoaded, orders, isOptimized, HQ]);
+
   if (loading) return <Text>Loading route…</Text>;
 
   return (
@@ -148,15 +182,15 @@ export default function DriverRoutePage() {
           )}
         </HStack>
 
-        {/* Map with polyline & markers */}
-        {encodedPolyline ? (
+        {/* Map (once API is loaded) */}
+        {orders.length > 0 && isLoaded ? (
           <MapWithRoute
             encodedPolyline={encodedPolyline}
             stops={orders.map(o => ({ lat: o.lat, lng: o.lng }))}
             headquarters={HQ}
           />
         ) : (
-          <Text>No map available for this route.</Text>
+          <Text>Loading map…</Text>
         )}
 
         {/* Current Stops List */}
@@ -165,7 +199,7 @@ export default function DriverRoutePage() {
             Stops on this route
           </Text>
           <VStack align="stretch" spacing={3}>
-            {orders.map(o => (
+            {orders.map((o, idx) => (
               <HStack
                 key={o.id}
                 justify="space-between"
@@ -176,7 +210,7 @@ export default function DriverRoutePage() {
               >
                 <Box>
                   <Text>
-                    # {o.index} — {o.customerName}
+                    # {idx + 1} — {o.customerName}
                   </Text>
                   <Text fontSize="sm">{o.address}</Text>
                 </Box>
