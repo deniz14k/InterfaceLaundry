@@ -13,6 +13,53 @@ function authHeaders() {
 
 
 
+/**
+ * DELETE /api/deliveryroute/{routeId}/order/{orderId}
+ * Removes an order from a route.
+ */
+export async function removeOrderFromRoute(routeId, orderId) {
+  const res = await fetch(
+    `${API_BASE_URL}/api/deliveryroute/${routeId}/order/${orderId}`,
+    {
+      method: 'DELETE',
+      headers: authHeaders()
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to remove order from route: ${res.status} ${text}`);
+  }
+  // no JSON returned on 204
+  return;
+}
+
+/**
+ * POST /api/deliveryroute/{routeId}/order
+ * Adds an order to a route, returns the new stop object.
+ */
+export async function addOrderToRoute(routeId, orderId) {
+  const res = await fetch(
+    `${API_BASE_URL}/api/deliveryroute/${routeId}/order`,
+    {
+      method: 'POST',
+      headers: {
+        ...authHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ orderId })
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to add order to route: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+
+
+
+
 export async function startRoute(routeId) {
   const res = await fetch(
     `${API_BASE_URL}/api/deliveryroute/${routeId}/start`,

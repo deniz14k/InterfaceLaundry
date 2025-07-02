@@ -101,6 +101,11 @@ export default function MyOrderDetailsPage() {
   }
 
   const isDelivery = order.serviceType === 'PickupDelivery';
+  // customer coordinates
+  const custLatLng = isDelivery && {
+    lat: order.deliveryLatitude,
+    lng: order.deliveryLongitude
+  };  
 
   return (
     <Box p={6}>
@@ -154,7 +159,21 @@ export default function MyOrderDetailsPage() {
             />
 
             <GoogleMap mapContainerStyle={{ width: '100%', height: '300px' }} center={driverLoc} zoom={12}>
-              <Marker position={driverLoc} label="🚗" />
+              {/* driver in BLUE */}
+              <Marker
+                position={driverLoc}
+                icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' }}
+                title="Driver"
+              />
+
+              {/* customer in GREEN */}
+              {custLatLng && (
+                <Marker
+                  position={custLatLng}
+                  icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' }}
+                  title="Your Location"
+                />
+              )}
             </GoogleMap>
           </LoadScript>
         </>

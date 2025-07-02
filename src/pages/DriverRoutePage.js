@@ -2,170 +2,232 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import {
+  Box,
+  Text,
+  Button,
+  Select,
+  VStack,
+  HStack,
+  useToast
+} from '@chakra-ui/react';
 import MapWithRoute from '../components/MapWithRoute';
 import {
   getRouteById,
   markOrderCompleted,
   startRoute,
   stopRoute,
-  reportTracking
+  reportTracking,
+  removeOrderFromRoute,
+  addOrderToRoute,
+  getEligibleOrders
 } from '../services/RouteService';
 
 export default function DriverRoutePage() {
   const { routeId } = useParams();
+  const toast = useToast();
+
   const [loading, setLoading] = useState(true);
   const [encodedPolyline, setEncodedPolyline] = useState('');
-  const [stops, setStops] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [totalPrice, setTotalPrice] = useState(0);
   const [routeStarted, setRouteStarted] = useState(false);
   const [watchId, setWatchId] = useState(null);
 
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+
+  // HQ coordinates
   const HQ = { lat: 46.7551903, lng: 23.5665899 };
 
-  // 1️⃣ Load route details once
-  useEffect(() => {
+  // Refresh route data from API
+  const refreshRoute = () => {
     if (!routeId) return;
     setLoading(true);
-
     getRouteById(routeId)
       .then(data => {
         setEncodedPolyline(data.polyline);
-        setStops(data.orders.map(o => ({ lat: o.lat, lng: o.lng })));
         setOrders(data.orders);
-        setTotalPrice(data.orders.reduce((sum, o) => sum + (o.price || 0), 0));
-        setRouteStarted(data.isStarted); // if your API returns an `isStarted` flag
+        setRouteStarted(data.isStarted);
       })
-      .catch(() => alert('Nu am putut încărca ruta.'))
+      .catch(() => toast({ status: 'error', title: 'Could not load route' }))
       .finally(() => setLoading(false));
+  };
+
+  // Initial load
+  useEffect(() => {
+    refreshRoute();
+    getEligibleOrders()
+      .then(setPendingOrders)
+      .catch(() => console.error('Failed to load eligible orders'));
   }, [routeId]);
 
-  // 2️⃣ When route is started, begin watching position
+  // GPS tracking
   useEffect(() => {
     if (routeStarted && routeId && navigator.geolocation) {
       const id = navigator.geolocation.watchPosition(
-        pos => {
-          reportTracking(routeId, pos.coords.latitude, pos.coords.longitude)
-            .catch(console.error);
-        },
-        err => console.error(err),
+        pos =>
+          reportTracking(routeId, pos.coords.latitude, pos.coords.longitude).catch(
+            console.error
+          ),
+        err => console.error('GPS error', err),
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
       );
       setWatchId(id);
     }
-    // cleanup
     return () => {
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
     };
   }, [routeStarted, routeId]);
 
+  // Handlers
   const handleStart = () => {
     startRoute(routeId)
-      .then(() => setRouteStarted(true))
-      .catch(() => alert('Failed to start route'));
+      .then(() => {
+        setRouteStarted(true);
+        toast({ status: 'success', title: 'Route started' });
+      })
+      .catch(() => toast({ status: 'error', title: 'Failed to start route' }));
   };
 
   const handleStop = () => {
     stopRoute(routeId)
-      .then(() => setRouteStarted(false))
-      .catch(() => alert('Failed to stop route'));
+      .then(() => {
+        setRouteStarted(false);
+        toast({ status: 'success', title: 'Route stopped' });
+      })
+      .catch(() => toast({ status: 'error', title: 'Failed to stop route' }));
   };
 
-  const handleMarkCompleted = (orderId) => {
+  const handleMarkCompleted = orderId => {
     markOrderCompleted(routeId, orderId)
       .then(() => {
         setOrders(prev =>
           prev.map(o => (o.id === orderId ? { ...o, isCompleted: true } : o))
         );
+        toast({ status: 'success', title: 'Order marked done' });
       })
-      .catch(() => alert('Nu am putut marca comanda ca finalizată.'));
+      .catch(() => toast({ status: 'error', title: 'Could not mark done' }));
   };
 
-  if (loading) return <p>Se încarcă ruta…</p>;
+  const handleRemove = orderId => {
+    removeOrderFromRoute(routeId, orderId)
+      .then(() => {
+        toast({ status: 'success', title: 'Order removed' });
+        refreshRoute();
+      })
+      .catch(() => toast({ status: 'error', title: 'Could not remove order' }));
+  };
+
+  const handleAdd = () => {
+    if (!selectedOrderId) return;
+    addOrderToRoute(routeId, selectedOrderId)
+      .then(() => {
+        toast({ status: 'success', title: 'Order added' });
+        setSelectedOrderId('');
+        refreshRoute();
+      })
+      .catch(() => toast({ status: 'error', title: 'Could not add order' }));
+  };
+
+  if (loading) return <Text>Loading route…</Text>;
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h2>🗺️ Driver Route Planner</h2>
+    <Box p={6}>
+      <VStack align="stretch" spacing={6}>
 
-      {/* Start / Stop buttons */}
-      {!routeStarted
-        ? <button onClick={handleStart}>▶️ Start Route</button>
-        : <button onClick={handleStop}>⏸️ Stop Route</button>
-      }
+        {/* Start / Stop controls */}
+        <HStack>
+          {!routeStarted ? (
+            <Button colorScheme="green" onClick={handleStart}>
+              ▶️ Start Route
+            </Button>
+          ) : (
+            <Button colorScheme="red" onClick={handleStop}>
+              ⏹ Stop Route
+            </Button>
+          )}
+        </HStack>
 
-      {/* Map */}
-      {encodedPolyline
-        ? <MapWithRoute
+        {/* Map with polyline & markers */}
+        {encodedPolyline ? (
+          <MapWithRoute
             encodedPolyline={encodedPolyline}
-            stops={stops}
+            stops={orders.map(o => ({ lat: o.lat, lng: o.lng }))}
             headquarters={HQ}
           />
-        : <p>Nu există polilinie pentru această rută.</p>
-      }
+        ) : (
+          <Text>No map available for this route.</Text>
+        )}
 
-      {/* Navigate whole route */}
-      {stops.length > 0 && (
-        <div style={{ margin: '1rem 0' }}>
-          <h3>💰 Total route value: {totalPrice} RON</h3>
-          <a
-            href={`https://www.google.com/maps/dir/${[HQ, ...stops, HQ]
-              .map(p => `${p.lat},${p.lng}`)
-              .join('/')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <button style={{
-              background: 'green',
-              color: 'white',
-              padding: '10px',
-              border: 'none',
-              borderRadius: '4px'
-            }}>
-              🚚 Navigate Entire Route
-            </button>
-          </a>
-        </div>
-      )}
-
-      {/* Stop list */}
-      {orders.map(order => (
-        <div key={order.id} style={{
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          padding: '1rem',
-          marginBottom: '1rem',
-          backgroundColor: order.isCompleted ? '#e0ffe0' : 'white'
-        }}>
-          <h4>📍 Stop {order.index}</h4>
-          <p><strong>Customer:</strong> {order.customer}</p>
-          <p><strong>Address:</strong> {order.address}</p>
-          <p><strong>Phone:</strong> {order.phone}</p>
-          <p><strong>Price:</strong> {order.price} RON</p>
-
-          <div style={{ marginTop: '0.5rem' }}>
-            <a href={`tel:${order.phone}`}>
-              <button style={{ marginRight: '0.5rem' }}>📞 Call</button>
-            </a>
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${order.lat},${order.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <button style={{ marginRight: '0.5rem' }}>🧭 Directions</button>
-            </a>
-            {!order.isCompleted && (
-              <button
-                onClick={() => markOrderCompleted(order.id)}
-                style={{ backgroundColor: '#007bff', color: 'white' }}
+        {/* Current Stops List */}
+        <Box>
+          <Text fontSize="lg" fontWeight="bold" mb={2}>
+            Stops on this route
+          </Text>
+          <VStack align="stretch" spacing={3}>
+            {orders.map(o => (
+              <HStack
+                key={o.id}
+                justify="space-between"
+                p={3}
+                borderWidth="1px"
+                borderRadius="md"
+                bg={o.isCompleted ? 'green.50' : 'white'}
               >
-                ✅ Mark as Done
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+                <Box>
+                  <Text>
+                    # {o.index} — {o.customerName}
+                  </Text>
+                  <Text fontSize="sm">{o.address}</Text>
+                </Box>
+                <HStack>
+                  {!o.isCompleted && (
+                    <Button
+                      size="sm"
+                      colorScheme="blue"
+                      onClick={() => handleMarkCompleted(o.id)}
+                    >
+                      ✅ Done
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    colorScheme="orange"
+                    onClick={() => handleRemove(o.id)}
+                  >
+                    🗑 Remove
+                  </Button>
+                </HStack>
+              </HStack>
+            ))}
+            {orders.length === 0 && <Text>No stops on this route.</Text>}
+          </VStack>
+        </Box>
 
-      {orders.length === 0 && <p>Nu există comenzi pe această rută.</p>}
-    </div>
+        {/* Add a new stop */}
+        <Box>
+          <Text fontSize="lg" fontWeight="bold" mb={2}>
+            Add an order to this route
+          </Text>
+          <HStack>
+            <Select
+              placeholder="Select from pending orders"
+              value={selectedOrderId}
+              onChange={e => setSelectedOrderId(e.target.value)}
+            >
+              {pendingOrders.map(o => (
+                <option key={o.id} value={o.id}>
+                  #{o.id} — {o.customerName}
+                </option>
+              ))}
+            </Select>
+            <Button colorScheme="teal" onClick={handleAdd}>
+              ➕ Add
+            </Button>
+          </HStack>
+        </Box>
+
+      </VStack>
+    </Box>
   );
 }
