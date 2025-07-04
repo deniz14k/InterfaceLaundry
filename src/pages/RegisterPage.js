@@ -1,5 +1,6 @@
-// src/pages/RegisterPage.js
-import { useState, useContext } from 'react';
+"use client"
+
+import { useState, useContext } from "react"
 import {
   Box,
   Input,
@@ -9,99 +10,318 @@ import {
   FormLabel,
   FormErrorMessage,
   useToast,
-} from '@chakra-ui/react';
-import { AuthContext } from '../contexts/authContext';   // <- exact case
-import { useNavigate } from 'react-router-dom';
+  Card,
+  CardBody,
+  VStack,
+  Text,
+  useColorModeValue,
+  Container,
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
+  Progress,
+  HStack,
+  Divider,
+} from "@chakra-ui/react"
+import { AuthContext } from "../contexts/authContext"
+import { useNavigate } from "react-router-dom"
 
-/** <<< central API base >>> */
-const API_BASE_URL = 'https://localhost:7223';
+const API_BASE_URL = "https://localhost:7223"
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const toast = useToast();
-  const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirm, setConfirm] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const toast = useToast()
+  const navigate = useNavigate()
+  const { login } = useContext(AuthContext)
 
-  const passwordsMatch = password === confirm || confirm === '';
+  // Color mode values
+  const bgGradient = useColorModeValue(
+    "linear(to-br, blue.50, purple.50, pink.50)",
+    "linear(to-br, gray.900, purple.900, blue.900)",
+  )
+  const cardBg = useColorModeValue("white", "gray.800")
+  const textColor = useColorModeValue("gray.700", "gray.200")
+
+  const passwordsMatch = password === confirm || confirm === ""
+  const passwordStrength = getPasswordStrength(password)
+
+  function getPasswordStrength(pwd) {
+    let score = 0
+    if (pwd.length >= 8) score += 25
+    if (/[A-Z]/.test(pwd)) score += 25
+    if (/[0-9]/.test(pwd)) score += 25
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 25
+    return score
+  }
+
+  const getStrengthColor = (strength) => {
+    if (strength < 25) return "red"
+    if (strength < 50) return "orange"
+    if (strength < 75) return "yellow"
+    return "green"
+  }
+
+  const getStrengthText = (strength) => {
+    if (strength < 25) return "Weak"
+    if (strength < 50) return "Fair"
+    if (strength < 75) return "Good"
+    return "Strong"
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!passwordsMatch) {
-      toast({ status: 'warning', title: 'Passwords do not match' });
-      return;
+      toast({ status: "warning", title: "Passwords do not match" })
+      return
+    }
+    if (passwordStrength < 50) {
+      toast({ status: "warning", title: "Please choose a stronger password" })
+      return
     }
 
+    setLoading(true)
     try {
       const res = await fetch(`${API_BASE_URL}/api/Account/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           password,
           confirmPassword: confirm,
         }),
-      });
+      })
 
       if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Registration failed');
+        const msg = await res.text()
+        throw new Error(msg || "Registration failed")
       }
 
-      // backend returns { token: '...' }
-      const { token } = await res.json();
-      login(token);                               // store JWT
-      toast({ status: 'success', title: 'Account created. Welcome!' });
-      navigate('/');                              // goto Orders
+      const { token } = await res.json()
+      login(token)
+      toast({
+        status: "success",
+        title: "🎉 Welcome to LaundryPro!",
+        description: "Your account has been created successfully",
+      })
+      navigate("/")
     } catch (err) {
-      toast({ status: 'error', title: err.message });
+      toast({ status: "error", title: "Registration failed", description: err.message })
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <Box maxW="sm" mx="auto" mt={20} p={6} borderWidth="1px" borderRadius="lg">
-      <Heading size="md" mb={4}>Create Account</Heading>
+    <Box minH="100vh" bgGradient={bgGradient} display="flex" alignItems="center" justifyContent="center" p={4}>
+      <Container maxW="md">
+        <Card bg={cardBg} shadow="2xl" borderRadius="2xl" overflow="hidden">
+          <Box h="4px" bgGradient="linear(to-r, blue.400, purple.400, pink.400)" />
+          <CardBody p={10}>
+            <VStack spacing={8}>
+              {/* Header */}
+              <VStack spacing={4} textAlign="center">
+                <Box
+                  bg="purple.500"
+                  p={4}
+                  borderRadius="2xl"
+                  bgGradient="linear(to-r, purple.400, pink.500)"
+                  shadow="lg"
+                >
+                  <Text fontSize="3xl" color="white">
+                    ✨
+                  </Text>
+                </Box>
+                <VStack spacing={2}>
+                  <Heading size="xl" bgGradient="linear(to-r, purple.400, pink.500)" bgClip="text">
+                    Join LaundryPro
+                  </Heading>
+                  <Text color={textColor} fontSize="lg">
+                    Create your account and start your premium laundry experience
+                  </Text>
+                </VStack>
+              </VStack>
 
-      <form onSubmit={handleSubmit}>
-        <FormControl mb={3} isRequired>
-          <FormLabel>Email</FormLabel>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </FormControl>
+              {/* Registration Form */}
+              <Box w="full">
+                <form onSubmit={handleSubmit}>
+                  <VStack spacing={6}>
+                    <FormControl isRequired>
+                      <FormLabel color={textColor} fontWeight="bold">
+                        📧 Email Address
+                      </FormLabel>
+                      <InputGroup>
+                        <InputLeftElement pointerEvents="none">
+                          <Text fontSize="lg">👤</Text>
+                        </InputLeftElement>
+                        <Input
+                          type="email"
+                          placeholder="Enter your email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          size="lg"
+                          borderRadius="xl"
+                          bg="gray.50"
+                          border="2px solid"
+                          borderColor="gray.200"
+                          _focus={{
+                            borderColor: "purple.400",
+                            bg: "white",
+                            shadow: "0 0 0 1px var(--chakra-colors-purple-400)",
+                          }}
+                          _hover={{ borderColor: "gray.300" }}
+                        />
+                      </InputGroup>
+                    </FormControl>
 
-        <FormControl mb={3} isRequired>
-          <FormLabel>Password</FormLabel>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </FormControl>
+                    <FormControl isRequired>
+                      <FormLabel color={textColor} fontWeight="bold">
+                        🔒 Password
+                      </FormLabel>
+                      <InputGroup>
+                        <InputLeftElement pointerEvents="none">
+                          <Text fontSize="lg">🔑</Text>
+                        </InputLeftElement>
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Create a strong password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          size="lg"
+                          borderRadius="xl"
+                          bg="gray.50"
+                          border="2px solid"
+                          borderColor="gray.200"
+                          _focus={{
+                            borderColor: "purple.400",
+                            bg: "white",
+                            shadow: "0 0 0 1px var(--chakra-colors-purple-400)",
+                          }}
+                          _hover={{ borderColor: "gray.300" }}
+                        />
+                        <InputRightElement width="4.5rem" h="full">
+                          <Button h="1.75rem" size="sm" onClick={() => setShowPassword(!showPassword)} variant="ghost">
+                            {showPassword ? "👁️" : "🙈"}
+                          </Button>
+                        </InputRightElement>
+                      </InputGroup>
+                      {password && (
+                        <Box mt={2}>
+                          <HStack justify="space-between" mb={1}>
+                            <Text fontSize="xs" color="gray.500">
+                              Password Strength
+                            </Text>
+                            <Text fontSize="xs" color={`${getStrengthColor(passwordStrength)}.500`} fontWeight="bold">
+                              {getStrengthText(passwordStrength)}
+                            </Text>
+                          </HStack>
+                          <Progress
+                            value={passwordStrength}
+                            colorScheme={getStrengthColor(passwordStrength)}
+                            size="sm"
+                            borderRadius="full"
+                          />
+                        </Box>
+                      )}
+                    </FormControl>
 
-        <FormControl mb={4} isRequired isInvalid={!passwordsMatch}>
-          <FormLabel>Confirm Password</FormLabel>
-          <Input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-          />
-          {!passwordsMatch && (
-            <FormErrorMessage>Passwords do not match.</FormErrorMessage>
-          )}
-        </FormControl>
+                    <FormControl isRequired isInvalid={!passwordsMatch}>
+                      <FormLabel color={textColor} fontWeight="bold">
+                        🔒 Confirm Password
+                      </FormLabel>
+                      <InputGroup>
+                        <InputLeftElement pointerEvents="none">
+                          <Text fontSize="lg">✅</Text>
+                        </InputLeftElement>
+                        <Input
+                          type="password"
+                          placeholder="Confirm your password"
+                          value={confirm}
+                          onChange={(e) => setConfirm(e.target.value)}
+                          size="lg"
+                          borderRadius="xl"
+                          bg="gray.50"
+                          border="2px solid"
+                          borderColor={!passwordsMatch ? "red.300" : "gray.200"}
+                          _focus={{
+                            borderColor: !passwordsMatch ? "red.400" : "purple.400",
+                            bg: "white",
+                            shadow: !passwordsMatch
+                              ? "0 0 0 1px var(--chakra-colors-red-400)"
+                              : "0 0 0 1px var(--chakra-colors-purple-400)",
+                          }}
+                          _hover={{ borderColor: !passwordsMatch ? "red.300" : "gray.300" }}
+                        />
+                      </InputGroup>
+                      {!passwordsMatch && (
+                        <FormErrorMessage>
+                          <Text fontSize="sm">🚫 Passwords do not match</Text>
+                        </FormErrorMessage>
+                      )}
+                    </FormControl>
 
-        <Button colorScheme="teal" type="submit" width="full">
-          Register
-        </Button>
-      </form>
+                    <Button
+                      type="submit"
+                      size="lg"
+                      width="full"
+                      bgGradient="linear(to-r, purple.400, pink.500)"
+                      color="white"
+                      _hover={{
+                        bgGradient: "linear(to-r, purple.500, pink.600)",
+                        transform: "translateY(-2px)",
+                        shadow: "xl",
+                      }}
+                      _active={{
+                        transform: "translateY(0)",
+                      }}
+                      transition="all 0.2s"
+                      borderRadius="xl"
+                      fontWeight="bold"
+                      fontSize="lg"
+                      py={6}
+                      isLoading={loading}
+                      loadingText="Creating account..."
+                      leftIcon={<Text fontSize="lg">🚀</Text>}
+                      isDisabled={!passwordsMatch || passwordStrength < 50}
+                    >
+                      Create Account
+                    </Button>
+                  </VStack>
+                </form>
+              </Box>
 
-      <Button variant="link" mt={4} onClick={() => navigate('/login')} width="full">
-        Already have an account? Sign in
-      </Button>
+              <Divider />
+
+              {/* Sign In Link */}
+              <VStack spacing={4} w="full">
+                <Text color="gray.500" fontSize="sm">
+                  Already have an account?
+                </Text>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  width="full"
+                  onClick={() => navigate("/login")}
+                  borderRadius="xl"
+                  borderWidth="2px"
+                  _hover={{
+                    bg: "purple.50",
+                    borderColor: "purple.400",
+                    transform: "translateY(-1px)",
+                  }}
+                  transition="all 0.2s"
+                  leftIcon={<Text fontSize="lg">🔐</Text>}
+                >
+                  Sign In Instead
+                </Button>
+              </VStack>
+            </VStack>
+          </CardBody>
+        </Card>
+      </Container>
     </Box>
-  );
+  )
 }
