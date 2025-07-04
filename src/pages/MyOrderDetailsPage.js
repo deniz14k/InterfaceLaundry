@@ -29,6 +29,8 @@ export default function MyOrderDetailsPage() {
   const [eta, setEta]             = useState('');
   const [loading, setLoading]     = useState(true);
 
+  const DRIVER_PHONE = '+40123456789';
+
   // 1️⃣ Load my order (once)
   useEffect(() => {
     fetch(`https://localhost:7223/api/orders/my/${id}`, {
@@ -71,20 +73,30 @@ export default function MyOrderDetailsPage() {
 
   // 3️⃣ DirectionsService callback to compute cumulative ETA
   const handleFullRoute = (response, status) => {
-    if (status !== 'OK' || !response.routes.length) return;
-    const legs = response.routes[0].legs;
-    const idx  = stops.findIndex(s => s.id === order.id);
-    if (idx < 0) return;
+  if (status !== 'OK' || !response.routes.length) return;
+  const legs = response.routes[0].legs;
+  const idx  = stops.findIndex(s => s.id === order.id);
+  if (idx < 0) return;
 
-    // travel time in sec
-    const travelSecs = legs.slice(0, idx + 1)
-      .reduce((sum, leg) => sum + leg.duration.value, 0);
-    // add 5 minutes service buffer per previous stop
-    const serviceSecs = idx * 5 * 60;
-    const totalSecs   = travelSecs + serviceSecs;
+  // 1️⃣ Sum up drive time for legs 0 → idx
+  const travelSecs = legs
+    .slice(0, idx + 1)
+    .reduce((sum, leg) => sum + leg.duration.value, 0);
 
-    setEta(`${Math.ceil(totalSecs / 60)} min`);
-  };
+  // 2️⃣ Add a 5-minute (300s) service buffer for each completed stop
+  const serviceSecs = idx * 5 * 60;
+
+  const totalSecs = travelSecs + serviceSecs;
+
+  // 3️⃣ Compute arrival clock time
+  const arrival = new Date(Date.now() + totalSecs * 1000);
+  const hh = arrival.getHours().toString().padStart(2, '0');
+  const mm = arrival.getMinutes().toString().padStart(2, '0');
+
+  // 4️⃣ Display it!
+  setEta(`${hh}:${mm}`);
+};
+
 
   if (loading || !order) {
     return (
@@ -182,6 +194,15 @@ export default function MyOrderDetailsPage() {
           </LoadScript>
         </>
       )}
+
+{/* Call driver button */}
+      <div style={{ marginTop: '1rem' }}>
+        <a href={`tel:${DRIVER_PHONE}`}>
+          <button style={{ padding: '10px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '4px' }}>
+            📞 Call Driver
+          </button>
+        </a>
+      </div>
 
       {isDelivery && !routeStarted && (
         <Text mt={6} color="gray.500">
