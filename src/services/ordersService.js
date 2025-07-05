@@ -1,9 +1,10 @@
 // src/services/ordersService.js
 
 import { jwtDecode } from "jwt-decode";
-import api from './api'; // your configured Axios instance
 
 const API_BASE_URL = 'https://localhost:7223';
+
+
 
 
 
@@ -35,6 +36,105 @@ export async function getOrderById(id) {
   if (!res.ok) throw new Error('Failed to fetch order.');
   return res.json();
 }
+
+// Helper function to parse existing full addresses back to components
+export const parseAddressComponents = (fullAddress, apartmentNumber = null) => {
+  if (!fullAddress) {
+    return {
+      deliveryCity: "",
+      deliveryStreet: "",
+      deliveryStreetNumber: "",
+      apartmentNumber: apartmentNumber || "",
+    }
+  }
+
+  // Try to parse the address using common Romanian patterns
+  // Example: "Cluj-Napoca, Strada Memorandumului 28" or "Strada Lunii 22, Cluj-Napoca"
+
+  const components = {
+    deliveryCity: "",
+    deliveryStreet: "",
+    deliveryStreetNumber: "",
+    apartmentNumber: apartmentNumber || "",
+  }
+
+  // Common Romanian cities
+  const romanianCities = [
+    "Cluj-Napoca",
+    "București",
+    "Timișoara",
+    "Iași",
+    "Constanța",
+    "Craiova",
+    "Brașov",
+    "Galați",
+    "Ploiești",
+    "Oradea",
+    "Braila",
+    "Arad",
+    "Pitești",
+    "Sibiu",
+    "Bacău",
+    "Târgu Mureș",
+    "Baia Mare",
+    "Buzău",
+    "Botoșani",
+    "Satu Mare",
+    "Râmnicu Vâlcea",
+    "Suceava",
+    "Piatra Neamț",
+  ]
+
+  // Try to find city in the address
+  const foundCity = romanianCities.find((city) => fullAddress.toLowerCase().includes(city.toLowerCase()))
+
+  if (foundCity) {
+    components.deliveryCity = foundCity
+    // Remove city from address to parse street
+    const addressWithoutCity = fullAddress.replace(new RegExp(foundCity, "gi"), "").replace(/,\s*/g, "").trim()
+
+    // Try to parse street and number from remaining text
+    // Pattern: "Strada/Str./Bd./Bulevardul [Name] [Number]"
+    const streetPattern = /^(Strada|Str\.|Bulevardul|Bd\.|Aleea|Calea|Piața)\s+(.+?)\s+(\d+[A-Za-z]?)$/i
+    const match = addressWithoutCity.match(streetPattern)
+
+    if (match) {
+      components.deliveryStreet = `${match[1]} ${match[2]}`.trim()
+      components.deliveryStreetNumber = match[3]
+    } else {
+      // Fallback: try to extract number from end
+      const numberMatch = addressWithoutCity.match(/^(.+?)\s+(\d+[A-Za-z]?)$/)
+      if (numberMatch) {
+        components.deliveryStreet = numberMatch[1].trim()
+        components.deliveryStreetNumber = numberMatch[2]
+      } else {
+        components.deliveryStreet = addressWithoutCity
+      }
+    }
+  } else {
+    // No city found, try to parse street and number
+    const streetPattern = /^(Strada|Str\.|Bulevardul|Bd\.|Aleea|Calea|Piața)\s+(.+?)\s+(\d+[A-Za-z]?)$/i
+    const match = fullAddress.match(streetPattern)
+
+    if (match) {
+      components.deliveryStreet = `${match[1]} ${match[2]}`.trim()
+      components.deliveryStreetNumber = match[3]
+    } else {
+      // Fallback: try to extract number from end
+      const numberMatch = fullAddress.match(/^(.+?)\s+(\d+[A-Za-z]?)$/)
+      if (numberMatch) {
+        components.deliveryStreet = numberMatch[1].trim()
+        components.deliveryStreetNumber = numberMatch[2]
+      } else {
+        components.deliveryStreet = fullAddress
+      }
+    }
+  }
+
+  return components
+}
+
+
 
 /** ------------------------------- POST create order */
 export async function createOrder(orderData) {

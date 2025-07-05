@@ -1,8 +1,6 @@
 "use client"
 
-import { useState, useContext } from "react"
-import { createOrder } from "./services/ordersService"
-import { AuthContext } from "./contexts/authContext"
+import { useState } from "react"
 import {
   Box,
   Button,
@@ -13,26 +11,27 @@ import {
   Textarea,
   VStack,
   HStack,
+  Text,
+  useToast,
   Card,
   CardBody,
   Heading,
-  Text,
-  useColorModeValue,
-  useToast,
   Badge,
   IconButton,
-  Tooltip,
-  SimpleGrid,
+  useColorModeValue,
   FormErrorMessage,
-  InputGroup,
-  InputLeftElement,
-  Divider,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  SimpleGrid,
+  Tooltip,
 } from "@chakra-ui/react"
+import { createOrder } from "./services/ordersService"
 import AddressInputComponent from "./components/address-input-component"
 
-export default function CreateOrderForm({ onOrderCreated }) {
-  const { user } = useContext(AuthContext)
-
+export default function CreateOrderForm({ onOrderCreated, onCancel }) {
   const [formData, setFormData] = useState({
     customerId: "",
     telephoneNumber: "",
@@ -44,11 +43,12 @@ export default function CreateOrderForm({ onOrderCreated }) {
       apartmentNumber: "",
     },
     observation: "",
-    items: [{ type: "Carpet", length: "", width: "" }],
+    items: [{ type: "Carpet", length: "", width: "", price: 0 }],
   })
 
-  const [loading, setLoading] = useState(false)
+  const [itemCount, setItemCount] = useState(1)
   const [errors, setErrors] = useState({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const toast = useToast()
 
   // Color mode values
@@ -64,39 +64,60 @@ export default function CreateOrderForm({ onOrderCreated }) {
     }
   }
 
-  const handleItemChange = (idx, field, val) => {
-    const next = [...formData.items]
-    next[idx][field] = val
-    setFormData((prev) => ({ ...prev, items: next }))
+  const handleItemCountChange = (value) => {
+    setItemCount(value)
+
+    // Adjust items array to match the count
+    const currentItems = [...formData.items]
+
+    if (value > currentItems.length) {
+      // Add new items
+      const itemsToAdd = value - currentItems.length
+      for (let i = 0; i < itemsToAdd; i++) {
+        currentItems.push({
+          type: "Carpet",
+          length: "",
+          width: "",
+          price: 0,
+        })
+      }
+    } else if (value < currentItems.length) {
+      // Remove excess items
+      currentItems.splice(value)
+    }
+
+    setFormData((prev) => ({ ...prev, items: currentItems }))
+  }
+
+  const handleItemChange = (idx, field, value) => {
+    const newItems = [...formData.items]
+    newItems[idx][field] = value
+    setFormData((prev) => ({ ...prev, items: newItems }))
   }
 
   const handleAddItem = () => {
-    setFormData((prev) => ({
-      ...prev,
-      items: [...prev.items, { type: "Carpet", length: "", width: "" }],
-    }))
+    const newCount = itemCount + 1
+    setItemCount(newCount)
+    handleItemCountChange(newCount)
   }
 
   const handleRemoveItem = (idx) => {
     if (formData.items.length > 1) {
-      setFormData((prev) => ({
-        ...prev,
-        items: prev.items.filter((_, i) => i !== idx),
-      }))
+      const newItems = formData.items.filter((_, i) => i !== idx)
+      setFormData((prev) => ({ ...prev, items: newItems }))
+      setItemCount(newItems.length)
     }
   }
 
   const validateForm = () => {
     const newErrors = {}
 
-    // Staff validation
-    if (user.role !== "Customer") {
-      if (!formData.customerId.trim()) {
-        newErrors.customerId = "Customer ID is required"
-      }
-      if (!formData.telephoneNumber.trim()) {
-        newErrors.telephoneNumber = "Phone number is required"
-      }
+    if (!formData.customerId.trim()) {
+      newErrors.customerId = "Customer ID is required"
+    }
+
+    if (!formData.telephoneNumber.trim()) {
+      newErrors.telephoneNumber = "Phone number is required"
     }
 
     if (formData.serviceType === "PickupDelivery") {
@@ -139,16 +160,17 @@ export default function CreateOrderForm({ onOrderCreated }) {
       return
     }
 
-    const formattedItems = formData.items.map((it) => ({
-      type: it.type,
-      length: it.type === "Carpet" ? Number.parseFloat(it.length) || null : null,
-      width: it.type === "Carpet" ? Number.parseFloat(it.width) || null : null,
+    // Format items
+    const formattedItems = formData.items.map((item) => ({
+      ...item,
+      length: item.type === "Carpet" ? Number.parseFloat(item.length) || null : null,
+      width: item.type === "Carpet" ? Number.parseFloat(item.width) || null : null,
+      price: Number.parseFloat(item.price) || 0,
     }))
 
     const newOrder = {
-      // for Customers, pull from JWT; for staff, use form values
-      customerId: user.role === "Customer" ? user.nameid : formData.customerId,
-      telephoneNumber: user.role === "Customer" ? user.name : formData.telephoneNumber,
+      customerId: formData.customerId,
+      telephoneNumber: formData.telephoneNumber,
       serviceType: formData.serviceType,
       addressComponents:
         formData.serviceType === "PickupDelivery"
@@ -165,24 +187,24 @@ export default function CreateOrderForm({ onOrderCreated }) {
       items: formattedItems,
     }
 
-    setLoading(true)
+    setIsSubmitting(true)
     try {
       await createOrder(newOrder)
       toast({
         status: "success",
         title: "🎉 Order created successfully!",
-        description: "Your new order has been submitted",
+        description: "The new order has been added to the system",
       })
       onOrderCreated()
-    } catch (err) {
-      console.error(err)
+    } catch (error) {
+      console.error(error)
       toast({
         status: "error",
         title: "Failed to create order",
         description: "Please try again or contact support",
       })
     } finally {
-      setLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -192,6 +214,8 @@ export default function CreateOrderForm({ onOrderCreated }) {
         return "🏠"
       case "Blanket":
         return "🛏️"
+      case "Pillow":
+        return "🛌"
       default:
         return "🧺"
     }
@@ -202,107 +226,94 @@ export default function CreateOrderForm({ onOrderCreated }) {
       <form onSubmit={handleSubmit}>
         <VStack spacing={8}>
           {/* Header */}
-          <VStack spacing={4} textAlign="center">
-            <HStack>
-              <Text fontSize="3xl">✨</Text>
-              <Heading size="xl" bgGradient="linear(to-r, teal.400, blue.500)" bgClip="text">
-                Create New Order
-              </Heading>
-            </HStack>
-            <Text color={textColor} fontSize="lg">
-              {user.role === "Customer" ? "Tell us about your laundry needs" : "Create an order for a customer"}
-            </Text>
-          </VStack>
+          <Card bg={cardBg} shadow="lg" borderRadius="xl" w="full">
+            <CardBody p={6}>
+              <HStack>
+                <Text fontSize="xl">➕</Text>
+                <Heading size="md" color={textColor}>
+                  Create New Order
+                </Heading>
+                <Badge colorScheme="blue" px={3} py={1} borderRadius="full" fontSize="sm">
+                  {formData.items.length} item{formData.items.length !== 1 ? "s" : ""}
+                </Badge>
+              </HStack>
+            </CardBody>
+          </Card>
 
-          {/* Customer Information - Staff Only */}
-          {user.role !== "Customer" && (
-            <Card bg={cardBg} shadow="lg" borderRadius="xl" w="full">
-              <CardBody p={6}>
-                <VStack spacing={6}>
-                  <HStack w="full">
-                    <Text fontSize="xl">👔</Text>
-                    <Heading size="md" color={textColor}>
-                      Customer Information
-                    </Heading>
-                    <Badge colorScheme="blue" px={2} py={1} borderRadius="full" fontSize="xs">
-                      Staff Only
-                    </Badge>
-                  </HStack>
-
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} w="full">
-                    <FormControl isInvalid={errors.customerId}>
-                      <FormLabel color={textColor} fontWeight="bold">
-                        Customer ID
-                      </FormLabel>
-                      <InputGroup>
-                        <InputLeftElement pointerEvents="none">
-                          <Text fontSize="lg">🆔</Text>
-                        </InputLeftElement>
-                        <Input
-                          value={formData.customerId}
-                          onChange={(e) => handleInputChange("customerId", e.target.value)}
-                          placeholder="Enter customer ID"
-                          size="lg"
-                          borderRadius="lg"
-                          bg={inputBg}
-                          border="2px solid"
-                          borderColor={errors.customerId ? "red.300" : "gray.200"}
-                          _focus={{
-                            borderColor: errors.customerId ? "red.400" : "teal.400",
-                            bg: "white",
-                          }}
-                          _hover={{ borderColor: errors.customerId ? "red.300" : "gray.300" }}
-                        />
-                      </InputGroup>
-                      <FormErrorMessage>{errors.customerId}</FormErrorMessage>
-                    </FormControl>
-
-                    <FormControl isInvalid={errors.telephoneNumber}>
-                      <FormLabel color={textColor} fontWeight="bold">
-                        📞 Phone Number
-                      </FormLabel>
-                      <InputGroup>
-                        <InputLeftElement pointerEvents="none">
-                          <Text fontSize="lg">📱</Text>
-                        </InputLeftElement>
-                        <Input
-                          value={formData.telephoneNumber}
-                          onChange={(e) => handleInputChange("telephoneNumber", e.target.value)}
-                          placeholder="Enter phone number"
-                          size="lg"
-                          borderRadius="lg"
-                          bg={inputBg}
-                          border="2px solid"
-                          borderColor={errors.telephoneNumber ? "red.300" : "gray.200"}
-                          _focus={{
-                            borderColor: errors.telephoneNumber ? "red.400" : "teal.400",
-                            bg: "white",
-                          }}
-                          _hover={{ borderColor: errors.telephoneNumber ? "red.300" : "gray.300" }}
-                        />
-                      </InputGroup>
-                      <FormErrorMessage>{errors.telephoneNumber}</FormErrorMessage>
-                    </FormControl>
-                  </SimpleGrid>
-                </VStack>
-              </CardBody>
-            </Card>
-          )}
-
-          {/* Service Details */}
+          {/* Customer Information */}
           <Card bg={cardBg} shadow="lg" borderRadius="xl" w="full">
             <CardBody p={6}>
               <VStack spacing={6}>
                 <HStack w="full">
-                  <Text fontSize="xl">🚚</Text>
+                  <Text fontSize="xl">👤</Text>
                   <Heading size="md" color={textColor}>
-                    Service Details
+                    Customer Information
+                  </Heading>
+                </HStack>
+
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} w="full">
+                  <FormControl isInvalid={errors.customerId}>
+                    <FormLabel color={textColor} fontWeight="bold">
+                      Customer ID
+                    </FormLabel>
+                    <Input
+                      value={formData.customerId}
+                      onChange={(e) => handleInputChange("customerId", e.target.value)}
+                      placeholder="Enter customer ID"
+                      size="lg"
+                      borderRadius="lg"
+                      bg={inputBg}
+                      border="2px solid"
+                      borderColor={errors.customerId ? "red.300" : "gray.200"}
+                      _focus={{
+                        borderColor: errors.customerId ? "red.400" : "blue.400",
+                        bg: "white",
+                      }}
+                      _hover={{ borderColor: errors.customerId ? "red.300" : "gray.300" }}
+                    />
+                    <FormErrorMessage>{errors.customerId}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={errors.telephoneNumber}>
+                    <FormLabel color={textColor} fontWeight="bold">
+                      📞 Phone Number
+                    </FormLabel>
+                    <Input
+                      value={formData.telephoneNumber}
+                      onChange={(e) => handleInputChange("telephoneNumber", e.target.value)}
+                      placeholder="Enter phone number"
+                      size="lg"
+                      borderRadius="lg"
+                      bg={inputBg}
+                      border="2px solid"
+                      borderColor={errors.telephoneNumber ? "red.300" : "gray.200"}
+                      _focus={{
+                        borderColor: errors.telephoneNumber ? "red.400" : "blue.400",
+                        bg: "white",
+                      }}
+                      _hover={{ borderColor: errors.telephoneNumber ? "red.300" : "gray.300" }}
+                    />
+                    <FormErrorMessage>{errors.telephoneNumber}</FormErrorMessage>
+                  </FormControl>
+                </SimpleGrid>
+              </VStack>
+            </CardBody>
+          </Card>
+
+          {/* Order Details */}
+          <Card bg={cardBg} shadow="lg" borderRadius="xl" w="full">
+            <CardBody p={6}>
+              <VStack spacing={6}>
+                <HStack w="full">
+                  <Text fontSize="xl">📋</Text>
+                  <Heading size="md" color={textColor}>
+                    Order Details
                   </Heading>
                 </HStack>
 
                 <FormControl>
-                  <FormLabel color={textColor} fontWeight="bold" fontSize="lg">
-                    Service Type
+                  <FormLabel color={textColor} fontWeight="bold">
+                    🚚 Service Type
                   </FormLabel>
                   <Select
                     value={formData.serviceType}
@@ -313,7 +324,7 @@ export default function CreateOrderForm({ onOrderCreated }) {
                     border="2px solid"
                     borderColor="gray.200"
                     _focus={{
-                      borderColor: "teal.400",
+                      borderColor: "blue.400",
                       bg: "white",
                     }}
                     _hover={{ borderColor: "gray.300" }}
@@ -321,9 +332,6 @@ export default function CreateOrderForm({ onOrderCreated }) {
                     <option value="Office">🏢 Office Pickup</option>
                     <option value="PickupDelivery">🚚 Pickup & Delivery</option>
                   </Select>
-                  <Text fontSize="sm" color="gray.500" mt={2}>
-                    Choose how you'd like us to handle your laundry
-                  </Text>
                 </FormControl>
 
                 {formData.serviceType === "PickupDelivery" && (
@@ -342,19 +350,19 @@ export default function CreateOrderForm({ onOrderCreated }) {
 
                 <FormControl>
                   <FormLabel color={textColor} fontWeight="bold">
-                    📝 Special Notes (Optional)
+                    📝 Special Notes
                   </FormLabel>
                   <Textarea
                     value={formData.observation}
                     onChange={(e) => handleInputChange("observation", e.target.value)}
-                    placeholder="Any special instructions, stains to note, or care preferences..."
+                    placeholder="Any special instructions or observations..."
                     size="lg"
                     borderRadius="lg"
                     bg={inputBg}
                     border="2px solid"
                     borderColor="gray.200"
                     _focus={{
-                      borderColor: "teal.400",
+                      borderColor: "blue.400",
                       bg: "white",
                     }}
                     _hover={{ borderColor: "gray.300" }}
@@ -371,57 +379,129 @@ export default function CreateOrderForm({ onOrderCreated }) {
               <VStack spacing={6}>
                 <HStack justify="space-between" w="full">
                   <HStack>
-                    <Text fontSize="xl">🧼</Text>
+                    <Text fontSize="xl">📦</Text>
                     <Heading size="md" color={textColor}>
-                      Your Items
+                      Items ({formData.items.length})
                     </Heading>
                   </HStack>
-                  <Badge colorScheme="teal" px={3} py={1} borderRadius="full" fontSize="sm">
-                    {formData.items.length} item{formData.items.length !== 1 ? "s" : ""}
-                  </Badge>
+                  <Button
+                    leftIcon={<Text fontSize="lg">➕</Text>}
+                    onClick={handleAddItem}
+                    colorScheme="blue"
+                    size="sm"
+                    borderRadius="full"
+                    bgGradient="linear(to-r, blue.400, blue.600)"
+                    _hover={{
+                      bgGradient: "linear(to-r, blue.500, blue.700)",
+                      transform: "translateY(-2px)",
+                      shadow: "lg",
+                    }}
+                    transition="all 0.2s"
+                  >
+                    Add Item
+                  </Button>
                 </HStack>
+
+                {/* Quick Item Count Input */}
+                <Card bg="blue.50" borderRadius="lg" w="full" borderWidth="2px" borderColor="blue.200">
+                  <CardBody p={4}>
+                    <HStack justify="center" spacing={4}>
+                      <Text color="blue.600" fontWeight="bold">
+                        ⚡ Quick Setup - Number of Items:
+                      </Text>
+                      <NumberInput
+                        value={itemCount}
+                        onChange={(valueString, valueNumber) => handleItemCountChange(valueNumber || 1)}
+                        min={1}
+                        max={20}
+                        size="md"
+                        w="140px"
+                      >
+                        <NumberInputField
+                          borderRadius="lg"
+                          bg="white"
+                          border="2px solid"
+                          borderColor="blue.300"
+                          _focus={{ borderColor: "blue.500" }}
+                          fontWeight="bold"
+                          textAlign="center"
+                        />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper color="blue.500" />
+                          <NumberDecrementStepper color="blue.500" />
+                        </NumberInputStepper>
+                      </NumberInput>
+                      <Text fontSize="sm" color="blue.500">
+                        (1-20 items)
+                      </Text>
+                    </HStack>
+                  </CardBody>
+                </Card>
 
                 <VStack spacing={4} w="full">
                   {formData.items.map((item, idx) => (
-                    <Card key={idx} bg="teal.50" borderRadius="lg" shadow="sm" w="full">
+                    <Card
+                      key={idx}
+                      w="full"
+                      bg="gray.50"
+                      borderRadius="xl"
+                      borderWidth="2px"
+                      borderColor="gray.200"
+                      _hover={{
+                        borderColor: "blue.300",
+                        shadow: "md",
+                        transform: "translateY(-1px)",
+                      }}
+                      transition="all 0.2s"
+                    >
                       <CardBody p={4}>
                         <VStack spacing={4}>
                           <HStack justify="space-between" w="full">
-                            <HStack>
+                            <HStack spacing={3}>
                               <Text fontSize="lg">{getItemIcon(item.type)}</Text>
                               <Text fontWeight="bold" color={textColor}>
                                 Item #{idx + 1}
                               </Text>
+                              <Badge colorScheme="blue" px={2} py={1} borderRadius="full" fontSize="xs">
+                                {item.type}
+                              </Badge>
                             </HStack>
                             {formData.items.length > 1 && (
                               <Tooltip label="Remove Item">
                                 <IconButton
                                   icon={<Text fontSize="sm">🗑️</Text>}
-                                  size="sm"
-                                  colorScheme="red"
-                                  variant="ghost"
                                   onClick={() => handleRemoveItem(idx)}
+                                  colorScheme="red"
+                                  size="sm"
                                   borderRadius="full"
-                                  _hover={{ transform: "scale(1.1)" }}
+                                  variant="ghost"
+                                  _hover={{
+                                    bg: "red.100",
+                                    transform: "scale(1.1)",
+                                  }}
                                 />
                               </Tooltip>
                             )}
                           </HStack>
 
-                          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="full">
+                          <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4} w="full">
                             <FormControl>
                               <FormLabel fontSize="sm" fontWeight="bold" color={textColor}>
-                                Item Type
+                                Type
                               </FormLabel>
                               <Select
                                 value={item.type}
                                 onChange={(e) => handleItemChange(idx, "type", e.target.value)}
+                                size="md"
                                 borderRadius="lg"
                                 bg="white"
-                                size="sm"
+                                border="2px solid"
+                                borderColor="gray.200"
+                                _focus={{ borderColor: "blue.400" }}
                               >
                                 <option value="Carpet">🏠 Carpet</option>
                                 <option value="Blanket">🛏️ Blanket</option>
+                                <option value="Pillow">🛌 Pillow</option>
                               </Select>
                             </FormControl>
 
@@ -429,7 +509,7 @@ export default function CreateOrderForm({ onOrderCreated }) {
                               <>
                                 <FormControl isInvalid={errors[`item_${idx}_length`]}>
                                   <FormLabel fontSize="sm" fontWeight="bold" color={textColor}>
-                                    Length (m)
+                                    📏 Length (m)
                                   </FormLabel>
                                   <Input
                                     type="number"
@@ -437,16 +517,21 @@ export default function CreateOrderForm({ onOrderCreated }) {
                                     value={item.length}
                                     onChange={(e) => handleItemChange(idx, "length", e.target.value)}
                                     placeholder="2.5"
+                                    size="md"
                                     borderRadius="lg"
                                     bg="white"
-                                    size="sm"
+                                    border="2px solid"
                                     borderColor={errors[`item_${idx}_length`] ? "red.300" : "gray.200"}
+                                    _focus={{
+                                      borderColor: errors[`item_${idx}_length`] ? "red.400" : "blue.400",
+                                    }}
                                   />
-                                  <FormErrorMessage fontSize="xs">{errors[`item_${idx}_length`]}</FormErrorMessage>
+                                  <FormErrorMessage>{errors[`item_${idx}_length`]}</FormErrorMessage>
                                 </FormControl>
+
                                 <FormControl isInvalid={errors[`item_${idx}_width`]}>
                                   <FormLabel fontSize="sm" fontWeight="bold" color={textColor}>
-                                    Width (m)
+                                    📐 Width (m)
                                   </FormLabel>
                                   <Input
                                     type="number"
@@ -454,82 +539,108 @@ export default function CreateOrderForm({ onOrderCreated }) {
                                     value={item.width}
                                     onChange={(e) => handleItemChange(idx, "width", e.target.value)}
                                     placeholder="3.0"
+                                    size="md"
                                     borderRadius="lg"
                                     bg="white"
-                                    size="sm"
+                                    border="2px solid"
                                     borderColor={errors[`item_${idx}_width`] ? "red.300" : "gray.200"}
+                                    _focus={{
+                                      borderColor: errors[`item_${idx}_width`] ? "red.400" : "blue.400",
+                                    }}
                                   />
-                                  <FormErrorMessage fontSize="xs">{errors[`item_${idx}_width`]}</FormErrorMessage>
+                                  <FormErrorMessage>{errors[`item_${idx}_width`]}</FormErrorMessage>
                                 </FormControl>
                               </>
                             )}
+
+                            <FormControl>
+                              <FormLabel fontSize="sm" fontWeight="bold" color={textColor}>
+                                💰 Price (RON)
+                              </FormLabel>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.price}
+                                onChange={(e) => handleItemChange(idx, "price", e.target.value)}
+                                placeholder="0.00"
+                                size="md"
+                                borderRadius="lg"
+                                bg="white"
+                                border="2px solid"
+                                borderColor="gray.200"
+                                _focus={{ borderColor: "blue.400" }}
+                              />
+                            </FormControl>
                           </SimpleGrid>
                         </VStack>
                       </CardBody>
                     </Card>
                   ))}
+
+                  {formData.items.length === 0 && (
+                    <Card w="full" bg="gray.50" borderRadius="xl" borderWidth="2px" borderStyle="dashed">
+                      <CardBody p={8} textAlign="center">
+                        <VStack spacing={3}>
+                          <Text fontSize="4xl">📦</Text>
+                          <Text color="gray.500" fontWeight="medium">
+                            No items added yet
+                          </Text>
+                          <Text fontSize="sm" color="gray.400">
+                            Use the number input above or click "Add Item" to get started
+                          </Text>
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  )}
                 </VStack>
-
-                <Button
-                  leftIcon={<Text fontSize="lg">➕</Text>}
-                  onClick={handleAddItem}
-                  variant="outline"
-                  size="lg"
-                  width="full"
-                  borderRadius="lg"
-                  borderWidth="2px"
-                  borderStyle="dashed"
-                  borderColor="teal.300"
-                  color="teal.600"
-                  _hover={{
-                    bg: "teal.50",
-                    borderColor: "teal.400",
-                    transform: "translateY(-1px)",
-                  }}
-                  transition="all 0.2s"
-                >
-                  Add Another Item
-                </Button>
               </VStack>
             </CardBody>
           </Card>
 
-          {/* Submit Button */}
-          <Card bg={cardBg} shadow="lg" borderRadius="xl" w="full">
-            <CardBody p={6}>
-              <VStack spacing={4}>
-                <Divider />
-                <Button
-                  type="submit"
-                  size="lg"
-                  width="full"
-                  bgGradient="linear(to-r, teal.400, blue.500)"
-                  color="white"
-                  _hover={{
-                    bgGradient: "linear(to-r, teal.500, blue.600)",
-                    transform: "translateY(-2px)",
-                    shadow: "xl",
-                  }}
-                  _active={{
-                    transform: "translateY(0)",
-                  }}
-                  transition="all 0.2s"
-                  borderRadius="lg"
-                  fontWeight="bold"
-                  fontSize="lg"
-                  py={8}
-                  isLoading={loading}
-                  loadingText="Creating order..."
-                  leftIcon={<Text fontSize="xl">🚀</Text>}
-                >
-                  Create Order
-                </Button>
-                <Text fontSize="sm" color="gray.500" textAlign="center">
-                  Your order will be reviewed and processed within 24 hours
-                </Text>
-              </VStack>
-            </CardBody>
-          </Card>
+          {/* Submit Buttons */}
+          <HStack spacing={4} w="full">
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              loadingText="Creating Order..."
+              colorScheme="blue"
+              size="lg"
+              borderRadius="full"
+              bgGradient="linear(to-r, blue.400, blue.600)"
+              _hover={{
+                bgGradient: "linear(to-r, blue.500, blue.700)",
+                transform: "translateY(-2px)",
+                shadow: "xl",
+              }}
+              transition="all 0.2s"
+              py={6}
+              fontSize="lg"
+              fontWeight="bold"
+              flex={1}
+            >
+              🚀 Create Order
+            </Button>
+
+            <Button
+              onClick={onCancel}
+              variant="outline"
+              colorScheme="gray"
+              size="lg"
+              borderRadius="full"
+              py={6}
+              fontSize="lg"
+              fontWeight="bold"
+              flex={1}
+              _hover={{
+                bg: "gray.100",
+                transform: "translateY(-2px)",
+                shadow: "md",
+              }}
+              transition="all 0.2s"
+            >
+              Cancel
+            </Button>
+          </HStack>
         </VStack>
       </form>
     </Box>

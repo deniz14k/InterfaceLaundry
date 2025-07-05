@@ -1,6 +1,8 @@
+"use client"
 
 import { useEffect, useState } from "react"
 import { getAllOrders, getFilteredOrders, deleteOrder } from "../services/ordersService"
+import { itemProgressService } from "../services/itemProgressService"
 import { useNavigate } from "react-router-dom"
 import OrderFilters from "../OrderFilters"
 import {
@@ -30,12 +32,16 @@ import {
   IconButton,
   Tooltip,
   Text,
+  CircularProgress,
+  CircularProgressLabel,
+  Progress,
 } from "@chakra-ui/react"
 
 function OrdersPage() {
   const [orders, setOrders] = useState([])
   const [selectedOrders, setSelectedOrders] = useState([])
   const [newStatus, setNewStatus] = useState("")
+  const [progressData, setProgressData] = useState({})
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -48,19 +54,53 @@ function OrdersPage() {
   const textColor = useColorModeValue("gray.700", "gray.200")
   const borderColor = useColorModeValue("gray.200", "gray.600")
 
-  // Load orders
+  // Load orders and progress data
   const loadOrders = () => {
-    getAllOrders().then(setOrders).catch(console.error)
+    getAllOrders()
+      .then((ordersData) => {
+        setOrders(ordersData)
+        // Load progress data for all orders
+        const allProgress = {}
+        ordersData.forEach((order) => {
+          const itemCount = order.items?.length || 0
+          allProgress[order.id] = itemProgressService.getCompletionStats(order.id, itemCount)
+        })
+        setProgressData(allProgress)
+      })
+      .catch(console.error)
   }
 
   useEffect(() => {
     loadOrders()
-  }, [])
+
+    // Set up interval to refresh progress data every 5 seconds
+    const interval = setInterval(() => {
+      if (orders.length > 0) {
+        const allProgress = {}
+        orders.forEach((order) => {
+          const itemCount = order.items?.length || 0
+          allProgress[order.id] = itemProgressService.getCompletionStats(order.id, itemCount)
+        })
+        setProgressData(allProgress)
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [orders.length])
 
   // Filter callback
   const handleFilter = (filters) => {
     getFilteredOrders(filters)
-      .then(setOrders)
+      .then((filteredOrders) => {
+        setOrders(filteredOrders)
+        // Update progress data for filtered orders
+        const allProgress = {}
+        filteredOrders.forEach((order) => {
+          const itemCount = order.items?.length || 0
+          allProgress[order.id] = itemProgressService.getCompletionStats(order.id, itemCount)
+        })
+        setProgressData(allProgress)
+      })
       .catch(() => toast({ status: "error", title: "Failed to filter orders" }))
     setSelectedOrders([])
   }
@@ -117,6 +157,17 @@ function OrdersPage() {
       .catch((err) => toast({ status: "error", title: err.message }))
   }
 
+  const handleDeleteOrder = (orderId) => {
+    if (window.confirm("Delete this order? This action cannot be undone.")) {
+      deleteOrder(orderId).then(() => {
+        // Clear progress data for deleted order
+        itemProgressService.clearOrderProgress(orderId)
+        toast({ status: "success", title: "🗑️ Order deleted successfully!" })
+        loadOrders()
+      })
+    }
+  }
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "pending":
@@ -147,6 +198,33 @@ function OrdersPage() {
     }
   }
 
+  const getCompletionColor = (percentage) => {
+    if (percentage === 100) return "green"
+    if (percentage >= 50) return "yellow"
+    return "red"
+  }
+
+  const getProgressSummary = () => {
+    let totalItems = 0
+    let completedItems = 0
+
+    orders.forEach((order) => {
+      const stats = progressData[order.id]
+      if (stats) {
+        totalItems += stats.total
+        completedItems += stats.completed
+      }
+    })
+
+    return {
+      totalItems,
+      completedItems,
+      percentage: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
+    }
+  }
+
+  const overallProgress = getProgressSummary()
+
   return (
     <Box minH="100vh" bgGradient={bgGradient}>
       <Container maxW="8xl" py={8}>
@@ -167,13 +245,43 @@ function OrdersPage() {
                 </Text>
               </VStack>
 
-              <VStack align="end" spacing={2}>
+              <VStack align="end" spacing={3}>
                 <Stat textAlign="right">
                   <StatLabel color={textColor}>Total Orders</StatLabel>
                   <StatNumber fontSize="3xl" bgGradient="linear(to-r, green.400, blue.500)" bgClip="text">
                     {orders.length}
                   </StatNumber>
                 </Stat>
+
+                {/* Overall Progress */}
+                <Card bg="blue.50" borderRadius="lg" p={3} borderWidth="2px" borderColor="blue.200">
+                  <VStack spacing={2}>
+                    <Text fontSize="sm" fontWeight="bold" color="blue.600">
+                      Overall Progress
+                    </Text>
+                    <HStack spacing={3}>
+                      <CircularProgress
+                        value={overallProgress.percentage}
+                        size="50px"
+                        color={getCompletionColor(overallProgress.percentage)}
+                        thickness="8px"
+                      >
+                        <CircularProgressLabel fontSize="xs" fontWeight="bold">
+                          {overallProgress.percentage}%
+                        </CircularProgressLabel>
+                      </CircularProgress>
+                      <VStack spacing={0} align="start">
+                        <Text fontSize="sm" fontWeight="bold" color="blue.700">
+                          {overallProgress.completedItems}/{overallProgress.totalItems}
+                        </Text>
+                        <Text fontSize="xs" color="blue.500">
+                          items done
+                        </Text>
+                      </VStack>
+                    </HStack>
+                  </VStack>
+                </Card>
+
                 <Badge colorScheme="blue" px={3} py={1} borderRadius="full" fontSize="sm">
                   {selectedOrders.length} selected
                 </Badge>
@@ -291,6 +399,9 @@ function OrdersPage() {
                       Customer
                     </Th>
                     <Th borderColor={borderColor} color="blue.500" fontSize="md" fontWeight="bold">
+                      Items Progress
+                    </Th>
+                    <Th borderColor={borderColor} color="blue.500" fontSize="md" fontWeight="bold">
                       Status
                     </Th>
                     <Th borderColor={borderColor} color="blue.500" fontSize="md" fontWeight="bold">
@@ -299,94 +410,132 @@ function OrdersPage() {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {orders.map((order) => (
-                    <Tr
-                      key={order.id}
-                      _hover={{
-                        bg: "blue.50",
-                        transform: "scale(1.01)",
-                        transition: "all 0.2s",
-                      }}
-                      bg={selectedOrders.includes(order.id) ? "blue.50" : "transparent"}
-                    >
-                      <Td borderColor={borderColor} py={4}>
-                        <Checkbox
-                          isChecked={selectedOrders.includes(order.id)}
-                          onChange={() => toggleOrderSelection(order.id)}
-                          colorScheme="blue"
-                        />
-                      </Td>
-                      <Td borderColor={borderColor}>
-                        <HStack>
-                          <Text fontSize="lg">📋</Text>
-                          <Text fontWeight="bold" color="blue.500">
-                            #{order.id}
+                  {orders.map((order) => {
+                    const itemStats = progressData[order.id] || {
+                      completed: 0,
+                      total: order.items?.length || 0,
+                      percentage: 0,
+                    }
+                    return (
+                      <Tr
+                        key={order.id}
+                        _hover={{
+                          bg: "blue.50",
+                          transform: "scale(1.01)",
+                          transition: "all 0.2s",
+                        }}
+                        bg={selectedOrders.includes(order.id) ? "blue.50" : "transparent"}
+                      >
+                        <Td borderColor={borderColor} py={4}>
+                          <Checkbox
+                            isChecked={selectedOrders.includes(order.id)}
+                            onChange={() => toggleOrderSelection(order.id)}
+                            colorScheme="blue"
+                          />
+                        </Td>
+                        <Td borderColor={borderColor}>
+                          <HStack>
+                            <Text fontSize="lg">📋</Text>
+                            <Text fontWeight="bold" color="blue.500">
+                              #{order.id}
+                            </Text>
+                          </HStack>
+                        </Td>
+                        <Td borderColor={borderColor}>
+                          <Text fontWeight="medium" color={textColor}>
+                            Customer #{order.customerId}
                           </Text>
-                        </HStack>
-                      </Td>
-                      <Td borderColor={borderColor}>
-                        <Text fontWeight="medium" color={textColor}>
-                          Customer #{order.customerId}
-                        </Text>
-                      </Td>
-                      <Td borderColor={borderColor}>
-                        <Badge
-                          colorScheme={getStatusColor(order.status)}
-                          px={3}
-                          py={1}
-                          borderRadius="full"
-                          fontSize="sm"
-                          fontWeight="bold"
-                        >
-                          {getStatusIcon(order.status)} {order.status}
-                        </Badge>
-                      </Td>
-                      <Td borderColor={borderColor}>
-                        <HStack spacing={2}>
-                          <Tooltip label="View Details">
-                            <IconButton
-                              icon={<Text fontSize="lg">👁️</Text>}
-                              size="sm"
-                              colorScheme="blue"
-                              variant="ghost"
-                              onClick={() => navigate(`/order/${order.id}`)}
-                              borderRadius="full"
-                              _hover={{ transform: "scale(1.1)" }}
-                            />
-                          </Tooltip>
-                          <Tooltip label="Edit Order">
-                            <IconButton
-                              icon={<Text fontSize="lg">✏️</Text>}
-                              size="sm"
-                              colorScheme="yellow"
-                              variant="ghost"
-                              onClick={() => navigate(`/edit/${order.id}`)}
-                              borderRadius="full"
-                              _hover={{ transform: "scale(1.1)" }}
-                            />
-                          </Tooltip>
-                          <Tooltip label="Delete Order">
-                            <IconButton
-                              icon={<Text fontSize="lg">🗑️</Text>}
-                              size="sm"
-                              colorScheme="red"
-                              variant="ghost"
-                              onClick={() => {
-                                if (window.confirm("Delete this order? This action cannot be undone.")) {
-                                  deleteOrder(order.id).then(() => {
-                                    toast({ status: "success", title: "🗑️ Order deleted successfully!" })
-                                    loadOrders()
-                                  })
-                                }
-                              }}
-                              borderRadius="full"
-                              _hover={{ transform: "scale(1.1)" }}
-                            />
-                          </Tooltip>
-                        </HStack>
-                      </Td>
-                    </Tr>
-                  ))}
+                        </Td>
+                        <Td borderColor={borderColor}>
+                          <VStack spacing={2} align="start">
+                            <HStack spacing={3}>
+                              <CircularProgress
+                                value={itemStats.percentage}
+                                size="45px"
+                                color={getCompletionColor(itemStats.percentage)}
+                                thickness="8px"
+                              >
+                                <CircularProgressLabel fontSize="xs" fontWeight="bold">
+                                  {itemStats.percentage}%
+                                </CircularProgressLabel>
+                              </CircularProgress>
+                              <VStack spacing={0} align="start">
+                                <Text fontSize="sm" fontWeight="bold" color={textColor}>
+                                  {itemStats.completed}/{itemStats.total} items
+                                </Text>
+                                <Text fontSize="xs" color="gray.500">
+                                  {itemStats.percentage === 100
+                                    ? "All done! 🎉"
+                                    : itemStats.completed > 0
+                                      ? "In progress ⏳"
+                                      : "Not started 📋"}
+                                </Text>
+                              </VStack>
+                            </HStack>
+                            {itemStats.total > 0 && (
+                              <Progress
+                                value={itemStats.percentage}
+                                size="sm"
+                                colorScheme={getCompletionColor(itemStats.percentage)}
+                                borderRadius="full"
+                                w="120px"
+                                bg="gray.200"
+                              />
+                            )}
+                          </VStack>
+                        </Td>
+                        <Td borderColor={borderColor}>
+                          <Badge
+                            colorScheme={getStatusColor(order.status)}
+                            px={3}
+                            py={1}
+                            borderRadius="full"
+                            fontSize="sm"
+                            fontWeight="bold"
+                          >
+                            {getStatusIcon(order.status)} {order.status}
+                          </Badge>
+                        </Td>
+                        <Td borderColor={borderColor}>
+                          <HStack spacing={2}>
+                            <Tooltip label="View Details">
+                              <IconButton
+                                icon={<Text fontSize="lg">👁️</Text>}
+                                size="sm"
+                                colorScheme="blue"
+                                variant="ghost"
+                                onClick={() => navigate(`/order/${order.id}`)}
+                                borderRadius="full"
+                                _hover={{ transform: "scale(1.1)" }}
+                              />
+                            </Tooltip>
+                            <Tooltip label="Edit Order">
+                              <IconButton
+                                icon={<Text fontSize="lg">✏️</Text>}
+                                size="sm"
+                                colorScheme="yellow"
+                                variant="ghost"
+                                onClick={() => navigate(`/edit/${order.id}`)}
+                                borderRadius="full"
+                                _hover={{ transform: "scale(1.1)" }}
+                              />
+                            </Tooltip>
+                            <Tooltip label="Delete Order">
+                              <IconButton
+                                icon={<Text fontSize="lg">🗑️</Text>}
+                                size="sm"
+                                colorScheme="red"
+                                variant="ghost"
+                                onClick={() => handleDeleteOrder(order.id)}
+                                borderRadius="full"
+                                _hover={{ transform: "scale(1.1)" }}
+                              />
+                            </Tooltip>
+                          </HStack>
+                        </Td>
+                      </Tr>
+                    )
+                  })}
                 </Tbody>
               </Table>
 
