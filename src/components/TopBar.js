@@ -95,10 +95,7 @@ export default function TopBar() {
           </Box>
           <Box>
             <Text fontSize="xl" fontWeight="bold" letterSpacing="tight">
-              LaundryPro
-            </Text>
-            <Text fontSize="xs" opacity={0.8}>
-              Premium Service
+              LaundrySystems
             </Text>
           </Box>
         </HStack>

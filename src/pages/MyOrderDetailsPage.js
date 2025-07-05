@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState, useContext } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
@@ -255,7 +257,14 @@ export default function MyOrderDetailsPage() {
                   <Text fontWeight="bold" color="purple.500">
                     📍 Delivery Address
                   </Text>
-                  <Text color={textColor}>{order.deliveryAddress}</Text>
+                  <VStack align="start" spacing={1}>
+                    <Text color={textColor}>{order.deliveryAddress}</Text>
+                    {order.apartmentNumber && (
+                      <Badge colorScheme="purple" px={2} py={1} borderRadius="full" fontSize="sm">
+                        🏢 Apartment {order.apartmentNumber}
+                      </Badge>
+                    )}
+                  </VStack>
                 </VStack>
               )}
             </SimpleGrid>
@@ -358,6 +367,8 @@ export default function MyOrderDetailsPage() {
                 </HStack>
 
                 <Progress value={75} colorScheme="blue" size="lg" borderRadius="full" w="full" bg="gray.100" />
+
+                
 
                 {process.env.REACT_APP_GOOGLE_MAPS_KEY ? (
                   <LoadScript

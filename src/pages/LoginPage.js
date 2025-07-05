@@ -99,7 +99,7 @@ export default function LoginPage() {
                     Welcome Back
                   </Heading>
                   <Text color={textColor} fontSize="lg">
-                    Sign in to your LaundryPro account
+                    Sign in to your LaundrySystems account
                   </Text>
                 </VStack>
               </VStack>

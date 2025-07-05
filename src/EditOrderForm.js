@@ -29,13 +29,19 @@ import {
   InputLeftElement,
   Divider,
 } from "@chakra-ui/react"
+import AddressInputComponent from "./components/address-input-component"
 
 export default function EditOrderForm({ order, onUpdated, onCancel }) {
   const [formData, setFormData] = useState({
     customerId: "",
     telephoneNumber: "",
     serviceType: "Office",
-    deliveryAddress: "",
+    addressComponents: {
+      street: "",
+      streetNumber: "",
+      city: "Cluj-Napoca",
+      apartmentNumber: "",
+    },
     observation: "",
     status: "Pending",
     items: [{ type: "Carpet", length: "", width: "", price: 0 }],
@@ -52,11 +58,38 @@ export default function EditOrderForm({ order, onUpdated, onCancel }) {
 
   useEffect(() => {
     if (order) {
+      // Parse existing delivery address back to components
+      const addressComponents = {
+        street: "",
+        streetNumber: "",
+        city: "Cluj-Napoca",
+        apartmentNumber: order.apartmentNumber || "",
+      }
+
+      if (order.deliveryAddress) {
+        // Try to parse "Strada Lunii 22, Cluj-Napoca, Romania" format
+        const parts = order.deliveryAddress.split(", ")
+        if (parts.length >= 2) {
+          const streetPart = parts[0] // "Strada Lunii 22"
+          const city = parts[1] // "Cluj-Napoca"
+
+          // Split street name and number
+          const streetMatch = streetPart.match(/^(.+)\s+(\d+[A-Za-z]*)$/)
+          if (streetMatch) {
+            addressComponents.street = streetMatch[1] // "Strada Lunii"
+            addressComponents.streetNumber = streetMatch[2] // "22"
+          } else {
+            addressComponents.street = streetPart
+          }
+          addressComponents.city = city
+        }
+      }
+
       setFormData({
         customerId: order.customerId || "",
         telephoneNumber: order.telephoneNumber || "",
         serviceType: order.serviceType || "Office",
-        deliveryAddress: order.deliveryAddress || "",
+        addressComponents,
         observation: order.observation || "",
         status: order.status || "Pending",
         items: order.items?.length > 0 ? order.items : [{ type: "Carpet", length: "", width: "", price: 0 }],
@@ -105,8 +138,16 @@ export default function EditOrderForm({ order, onUpdated, onCancel }) {
       newErrors.telephoneNumber = "Phone number is required"
     }
 
-    if (formData.serviceType === "PickupDelivery" && !formData.deliveryAddress.trim()) {
-      newErrors.deliveryAddress = "Delivery address is required for pickup & delivery service"
+    if (formData.serviceType === "PickupDelivery") {
+      if (!formData.addressComponents.street?.trim()) {
+        newErrors.street = "Street name is required for pickup & delivery service"
+      }
+      if (!formData.addressComponents.streetNumber?.trim()) {
+        newErrors.streetNumber = "Street number is required for pickup & delivery service"
+      }
+      if (!formData.addressComponents.city?.trim()) {
+        newErrors.city = "City is required for pickup & delivery service"
+      }
     }
 
     // Validate carpet dimensions
@@ -146,9 +187,24 @@ export default function EditOrderForm({ order, onUpdated, onCancel }) {
     }))
 
     const updatedOrder = {
-      ...order,
-      ...formData,
-      deliveryAddress: formData.serviceType === "PickupDelivery" ? formData.deliveryAddress : null,
+      id: order.id,
+      customerId: formData.customerId,
+      telephoneNumber: formData.telephoneNumber,
+      receivedDate: order.receivedDate,
+      status: formData.status,
+      serviceType: formData.serviceType,
+      addressComponents:
+        formData.serviceType === "PickupDelivery"
+          ? {
+              street: formData.addressComponents.street,
+              streetNumber: formData.addressComponents.streetNumber,
+              city: formData.addressComponents.city,
+              apartmentNumber: formData.addressComponents.apartmentNumber
+                ? Number.parseInt(formData.addressComponents.apartmentNumber)
+                : null,
+            }
+          : null,
+      observation: formData.observation,
       items: formattedItems,
     }
 
@@ -356,32 +412,17 @@ export default function EditOrderForm({ order, onUpdated, onCancel }) {
                 </SimpleGrid>
 
                 {formData.serviceType === "PickupDelivery" && (
-                  <FormControl isInvalid={errors.deliveryAddress}>
-                    <FormLabel color={textColor} fontWeight="bold">
-                      📍 Delivery Address
-                    </FormLabel>
-                    <InputGroup>
-                      <InputLeftElement pointerEvents="none">
-                        <Text fontSize="lg">🏠</Text>
-                      </InputLeftElement>
-                      <Input
-                        value={formData.deliveryAddress}
-                        onChange={(e) => handleInputChange("deliveryAddress", e.target.value)}
-                        placeholder="Enter full delivery address"
-                        size="lg"
-                        borderRadius="lg"
-                        bg={inputBg}
-                        border="2px solid"
-                        borderColor={errors.deliveryAddress ? "red.300" : "gray.200"}
-                        _focus={{
-                          borderColor: errors.deliveryAddress ? "red.400" : "blue.400",
-                          bg: "white",
-                        }}
-                        _hover={{ borderColor: errors.deliveryAddress ? "red.300" : "gray.300" }}
-                      />
-                    </InputGroup>
-                    <FormErrorMessage>{errors.deliveryAddress}</FormErrorMessage>
-                  </FormControl>
+                  <AddressInputComponent
+                    value={formData.addressComponents}
+                    onChange={(addressData) => handleInputChange("addressComponents", addressData)}
+                    errors={{
+                      street: errors.street,
+                      streetNumber: errors.streetNumber,
+                      city: errors.city,
+                      apartmentNumber: errors.apartmentNumber,
+                    }}
+                    isRequired={true}
+                  />
                 )}
 
                 <FormControl>

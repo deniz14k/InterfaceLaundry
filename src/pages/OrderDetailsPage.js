@@ -218,9 +218,16 @@ function OrderDetailsPage() {
                   <Text fontWeight="bold" color="orange.500">
                     📍 Delivery Address
                   </Text>
-                  <Text color={textColor} fontSize="lg">
-                    {order.deliveryAddress}
-                  </Text>
+                  <VStack align="start" spacing={1}>
+                    <Text color={textColor} fontSize="lg">
+                      {order.deliveryAddress}
+                    </Text>
+                    {order.apartmentNumber && (
+                      <Badge colorScheme="blue" px={2} py={1} borderRadius="full" fontSize="sm">
+                        🏢 Apartment {order.apartmentNumber}
+                      </Badge>
+                    )}
+                  </VStack>
                 </VStack>
               )}
             </SimpleGrid>
@@ -378,7 +385,7 @@ function OrderDetailsPage() {
                           <p><span class="label">Service Type:</span><span class="value">${order.serviceType}</span></p>
                           <p><span class="label">Received:</span><span class="value">${new Date(order.receivedDate).toLocaleString()}</span></p>
                           ${order.completedDate ? `<p><span class="label">Completed:</span><span class="value">${new Date(order.completedDate).toLocaleString()}</span></p>` : ""}
-                          ${order.deliveryAddress ? `<p><span class="label">Delivery Address:</span><span class="value">${order.deliveryAddress}</span></p>` : ""}
+                          ${order.deliveryAddress ? `<p><span class="label">Delivery Address:</span><span class="value">${order.deliveryAddress}${order.apartmentNumber ? ` (Apt. ${order.apartmentNumber})` : ""}</span></p>` : ""}
                           ${order.observation ? `<p><span class="label">Notes:</span><span class="value">${order.observation}</span></p>` : ""}
                         </div>
                         
@@ -546,7 +553,7 @@ Customer: #${order.customerId}
 Phone: ${order.telephoneNumber}
 Status: ${order.status}
 Service: ${order.serviceType}
-${order.deliveryAddress ? `Address: ${order.deliveryAddress}` : ""}
+${order.deliveryAddress ? `Address: ${order.deliveryAddress}${order.apartmentNumber ? ` (Apt. ${order.apartmentNumber})` : ""}` : ""}
 Received: ${new Date(order.receivedDate).toLocaleString()}
 ${order.completedDate ? `Completed: ${new Date(order.completedDate).toLocaleString()}` : ""}
 
@@ -605,7 +612,7 @@ Customer: #${order.customerId}
 Phone: ${order.telephoneNumber}
 Status: ${order.status}
 Service Type: ${order.serviceType}
-${order.deliveryAddress ? `Delivery Address: ${order.deliveryAddress}` : ""}
+${order.deliveryAddress ? `Delivery Address: ${order.deliveryAddress}${order.apartmentNumber ? ` (Apartment ${order.apartmentNumber})` : ""}` : ""}
 
 Items (${order.items?.length || 0}):
 ${

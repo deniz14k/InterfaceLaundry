@@ -27,6 +27,7 @@ import {
   SimpleGrid,
   Divider,
 } from "@chakra-ui/react"
+import AddressInputComponent from "../components/address-input-component"
 
 export default function CreateCustomerOrderPage() {
   const { user } = useContext(AuthContext)
@@ -34,10 +35,16 @@ export default function CreateCustomerOrderPage() {
   const toast = useToast()
 
   const [serviceType, setServiceType] = useState("Office")
-  const [deliveryAddress, setDeliveryAddress] = useState("")
+  const [addressComponents, setAddressComponents] = useState({
+    street: "",
+    streetNumber: "",
+    city: "Cluj-Napoca",
+    apartmentNumber: "",
+  })
   const [observation, setObservation] = useState("")
   const [items, setItems] = useState([{ type: "Carpet", length: "", width: "" }])
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
 
   // Color mode values
   const bgGradient = useColorModeValue(
@@ -59,11 +66,19 @@ export default function CreateCustomerOrderPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const newErrors = {}
 
     // Validation
-    if (serviceType === "PickupDelivery" && !deliveryAddress.trim()) {
-      toast({ status: "warning", title: "Please enter delivery address" })
-      return
+    if (serviceType === "PickupDelivery") {
+      if (!addressComponents.street?.trim()) {
+        newErrors.street = "Street name is required"
+      }
+      if (!addressComponents.streetNumber?.trim()) {
+        newErrors.streetNumber = "Street number is required"
+      }
+      if (!addressComponents.city?.trim()) {
+        newErrors.city = "City is required"
+      }
     }
 
     const formattedItems = items.map((it) => ({
@@ -79,13 +94,28 @@ export default function CreateCustomerOrderPage() {
       return
     }
 
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      toast({ status: "warning", title: "Please fix the errors" })
+      return
+    }
+
     const newOrder = {
       customerId: user.sub,
       telephoneNumber: user.phone,
       serviceType,
-      deliveryAddress: serviceType === "PickupDelivery" ? deliveryAddress : null,
+      addressComponents:
+        serviceType === "PickupDelivery"
+          ? {
+              street: addressComponents.street,
+              streetNumber: addressComponents.streetNumber,
+              city: addressComponents.city,
+              apartmentNumber: addressComponents.apartmentNumber
+                ? Number.parseInt(addressComponents.apartmentNumber)
+                : null,
+            }
+          : null,
       observation,
-      status: "Pending",
       items: formattedItems,
     }
 
@@ -182,32 +212,31 @@ export default function CreateCustomerOrderPage() {
                   </Text>
                 </FormControl>
 
-                {/* Delivery Address */}
+                {/* Replace the old delivery address FormControl with: */}
                 {serviceType === "PickupDelivery" && (
-                  <FormControl isRequired>
-                    <FormLabel color={textColor} fontWeight="bold" fontSize="lg">
-                      📍 Delivery Address
-                    </FormLabel>
-                    <Input
-                      type="text"
-                      placeholder="Enter your full delivery address"
-                      value={deliveryAddress}
-                      onChange={(e) => setDeliveryAddress(e.target.value)}
-                      size="lg"
-                      borderRadius="xl"
-                      bg="gray.50"
-                      border="2px solid"
-                      borderColor="gray.200"
-                      _focus={{
-                        borderColor: "blue.400",
-                        bg: "white",
-                      }}
-                      _hover={{ borderColor: "gray.300" }}
-                    />
-                    <Text fontSize="sm" color="gray.500" mt={2}>
-                      Include street, number, apartment, and any special instructions
-                    </Text>
-                  </FormControl>
+                  <AddressInputComponent
+                    value={addressComponents}
+                    onChange={(addressData) => {
+                      setAddressComponents(addressData)
+                      // Clear errors when user starts typing
+                      if (errors.street || errors.streetNumber || errors.city) {
+                        setErrors((prev) => ({
+                          ...prev,
+                          street: null,
+                          streetNumber: null,
+                          city: null,
+                          apartmentNumber: null,
+                        }))
+                      }
+                    }}
+                    errors={{
+                      street: errors.street,
+                      streetNumber: errors.streetNumber,
+                      city: errors.city,
+                      apartmentNumber: errors.apartmentNumber,
+                    }}
+                    isRequired={true}
+                  />
                 )}
 
                 {/* Special Notes */}

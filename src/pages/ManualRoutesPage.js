@@ -117,9 +117,7 @@ export default function ManualRoutesPage() {
                   Automatic Route Generation
                 </Heading>
               </HStack>
-              <Text color={textColor} textAlign="center">
-                Let our AI create the most efficient route for you automatically
-              </Text>
+              
 
               <HStack spacing={6} wrap="wrap" justify="center">
                 <FormControl maxW="200px">

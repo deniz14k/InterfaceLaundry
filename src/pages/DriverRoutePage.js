@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import {
@@ -401,9 +403,16 @@ export default function DriverRoutePage() {
                           <Text fontSize="lg" fontWeight="bold" color={textColor}>
                             {order.customerName}
                           </Text>
-                          <Text color="gray.500" fontSize="sm">
-                            📍 {order.address}
-                          </Text>
+                          <VStack align="start" spacing={1}>
+                            <Text color="gray.500" fontSize="sm">
+                              📍 {order.address}
+                            </Text>
+                            {order.apartmentNumber && (
+                              <Badge colorScheme="purple" px={2} py={1} borderRadius="full" fontSize="xs">
+                                🏢 Apartment {order.apartmentNumber}
+                              </Badge>
+                            )}
+                          </VStack>
                           <Text color="green.500" fontWeight="bold">
                             💰 {order.price} RON
                           </Text>
