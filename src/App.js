@@ -16,6 +16,8 @@ import CreateCustomerOrderPage from './pages/CreateCustomerOrderPage';
 import DriverRoutePage from './pages/DriverRoutePage';
 import ManualRoutesPage from './pages/ManualRoutesPage';
 import RoutesListPage    from './pages/RoutesListPage';
+import ScheduleOrderPage from './pages/ScheduleOrderPage';
+import SchedulingManagementPage from './pages/SchedulingManagementPage';
 
 
 
@@ -38,6 +40,11 @@ function App() {
         <Route path="/my-orders"   element={<MyOrdersPage />} />
         <Route path="/my-orders/:id"      element={<MyOrderDetailsPage />} />
         <Route path="/create-order" element={<CreateCustomerOrderPage />}/>
+      
+        <Route path="/scheduling-management" element={<SchedulingManagementPage />} />
+        <Route path="/schedule-order/:orderId" element={<ScheduleOrderPage />} />
+
+
         
            <Route  path="/driver/route/:routeId"element={<ProtectedRoute allowedRoles={['Admin', 'Manager']}><DriverRoutePage /></ProtectedRoute>}/>
 

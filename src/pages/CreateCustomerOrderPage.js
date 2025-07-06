@@ -26,13 +26,25 @@ import {
   Tooltip,
   SimpleGrid,
   Divider,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  useDisclosure,
+  Alert,
+  AlertIcon,
 } from "@chakra-ui/react"
 import AddressInputComponent from "../components/address-input-component"
+import SchedulingRequestForm from "../components/SchedulingRequestForm"
 
 export default function CreateCustomerOrderPage() {
   const { user } = useContext(AuthContext)
   const navigate = useNavigate()
   const toast = useToast()
+  const { isOpen, onOpen, onClose } = useDisclosure()
 
   const [serviceType, setServiceType] = useState("Office")
   const [addressComponents, setAddressComponents] = useState({
@@ -45,6 +57,8 @@ export default function CreateCustomerOrderPage() {
   const [items, setItems] = useState([{ type: "Carpet", length: "", width: "" }])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+  const [createdOrder, setCreatedOrder] = useState(null)
+  const [showScheduling, setShowScheduling] = useState(false)
 
   // Color mode values
   const bgGradient = useColorModeValue(
@@ -61,7 +75,6 @@ export default function CreateCustomerOrderPage() {
   }
 
   const handleAddItem = () => setItems([...items, { type: "Carpet", length: "", width: "" }])
-
   const handleRemoveItem = (idx) => setItems(items.filter((_, i) => i !== idx))
 
   const handleSubmit = async (e) => {
@@ -121,19 +134,44 @@ export default function CreateCustomerOrderPage() {
 
     setLoading(true)
     try {
-      await createOrder(newOrder)
+      const orderResponse = await createOrder(newOrder)
+      setCreatedOrder(orderResponse)
+
       toast({
         status: "success",
         title: "🎉 Order created successfully!",
         description: "Your laundry order has been submitted",
       })
-      navigate("/my-orders")
+
+      // Show scheduling modal for pickup/delivery orders
+      if (serviceType === "PickupDelivery") {
+        onOpen()
+      } else {
+        // For office pickup, go directly to orders page
+        navigate("/my-orders")
+      }
     } catch (err) {
       console.error(err)
       toast({ status: "error", title: "Failed to create order", description: "Please try again" })
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSchedulingComplete = (schedulingRequest) => {
+    onClose()
+    toast({
+      status: "success",
+      title: "🎉 Scheduling request submitted!",
+      description: "We'll confirm your time slot shortly via SMS",
+      duration: 5000,
+    })
+    navigate("/my-orders")
+  }
+
+  const handleSkipScheduling = () => {
+    onClose()
+    navigate("/my-orders")
   }
 
   const getItemIcon = (type) => {
@@ -212,7 +250,7 @@ export default function CreateCustomerOrderPage() {
                   </Text>
                 </FormControl>
 
-                {/* Replace the old delivery address FormControl with: */}
+                {/* Address Input for Pickup & Delivery */}
                 {serviceType === "PickupDelivery" && (
                   <AddressInputComponent
                     value={addressComponents}
@@ -415,6 +453,114 @@ export default function CreateCustomerOrderPage() {
           </CardBody>
         </Card>
       </Container>
+
+      {/* Scheduling Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="4xl" closeOnOverlayClick={false}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <VStack spacing={2}>
+              <HStack>
+                <Text fontSize="2xl">🎉</Text>
+                <Text>Order Created Successfully!</Text>
+              </HStack>
+              <Text fontSize="sm" fontWeight="normal" color="gray.500">
+                Would you like to schedule your pickup and delivery now?
+              </Text>
+            </VStack>
+          </ModalHeader>
+          <ModalCloseButton />
+
+          <ModalBody>
+            <VStack spacing={6}>
+              {/* Order Summary */}
+              {createdOrder && (
+                <Alert status="success" borderRadius="lg">
+                  <AlertIcon />
+                  <VStack align="start" spacing={1}>
+                    <Text fontWeight="bold">Order #{createdOrder.id} created successfully!</Text>
+                    <Text fontSize="sm">
+                      {items.length} item{items.length !== 1 ? "s" : ""} •{" "}
+                      {serviceType === "PickupDelivery" ? "Pickup & Delivery" : "Office Pickup"}
+                    </Text>
+                  </VStack>
+                </Alert>
+              )}
+
+              {/* Scheduling Benefits */}
+              <Card bg="blue.50" borderRadius="lg" borderWidth="2px" borderColor="blue.200">
+                <CardBody p={4}>
+                  <VStack spacing={3}>
+                    <HStack>
+                      <Text fontSize="lg">💡</Text>
+                      <Text fontWeight="bold" color="blue.700">
+                        Why schedule now?
+                      </Text>
+                    </HStack>
+                    <VStack spacing={2} align="start" w="full">
+                      <HStack>
+                        <Text fontSize="sm">✅</Text>
+                        <Text fontSize="sm" color="blue.600">
+                          <strong>Guaranteed time slots</strong> - Pick your preferred pickup and delivery times
+                        </Text>
+                      </HStack>
+                      <HStack>
+                        <Text fontSize="sm">📱</Text>
+                        <Text fontSize="sm" color="blue.600">
+                          <strong>SMS notifications</strong> - Get updates every step of the way
+                        </Text>
+                      </HStack>
+                      <HStack>
+                        <Text fontSize="sm">🚚</Text>
+                        <Text fontSize="sm" color="blue.600">
+                          <strong>Real-time tracking</strong> - Know exactly when we'll arrive
+                        </Text>
+                      </HStack>
+                    </VStack>
+                  </VStack>
+                </CardBody>
+              </Card>
+
+              {/* Scheduling Form */}
+              {createdOrder && (
+                <SchedulingRequestForm
+                  orderId={createdOrder.id}
+                  customerPhone={user.phoneNumber || user.phone || ""}
+                  customerName={user.name || ""}
+                  onRequestCreated={handleSchedulingComplete}
+                  onCancel={() => {}} // Don't show cancel in this context
+                />
+              )}
+            </VStack>
+          </ModalBody>
+
+          <ModalFooter>
+            <VStack spacing={3} w="full">
+              <Text fontSize="sm" color="gray.500" textAlign="center">
+                You can also schedule this later from your orders page
+              </Text>
+              <HStack spacing={4} w="full">
+                <Button variant="outline" onClick={handleSkipScheduling} flex={1} borderRadius="full" size="lg">
+                  Skip for Now
+                </Button>
+                <Button
+                  colorScheme="blue"
+                  onClick={() => setShowScheduling(true)}
+                  flex={1}
+                  borderRadius="full"
+                  size="lg"
+                  bgGradient="linear(to-r, blue.400, blue.600)"
+                  _hover={{
+                    bgGradient: "linear(to-r, blue.500, blue.700)",
+                  }}
+                >
+                  Schedule Service
+                </Button>
+              </HStack>
+            </VStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   )
 }

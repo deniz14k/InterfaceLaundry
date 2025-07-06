@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useContext } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { toast } from "react-toastify"
 import {
   Box,
   Heading,
@@ -34,6 +35,9 @@ import { LoadScript, GoogleMap, Marker, DirectionsService } from "@react-google-
 import { AuthContext } from "../contexts/authContext"
 import { itemProgressService } from "../services/itemProgressService"
 import { getRouteById as fetchRoute } from "../services/RouteService"
+import SchedulingRequestsList from "../components/SchedulingRequestsList"
+import SchedulingRequestForm from "../components/SchedulingRequestForm"
+import SchedulingStatusBadge from "../components/SchedulingStatusBadge"
 
 const MAP_LIBRARIES = ["places"]
 
@@ -51,6 +55,8 @@ export default function MyOrderDetailsPage() {
   const [stops, setStops] = useState([])
   const [eta, setEta] = useState("")
   const [loading, setLoading] = useState(true)
+  const [showSchedulingForm, setShowSchedulingForm] = useState(false)
+  const [schedulingRequests, setSchedulingRequests] = useState([])
 
   // Load item progress data
   useEffect(() => {
@@ -88,6 +94,8 @@ export default function MyOrderDetailsPage() {
         return r.json()
       })
       .then((o) => {
+        console.log("📦 Order loaded:", o)
+        console.log("👤 User context:", user)
         setOrder(o)
         setRouteId(o.routeId)
         setRouteStarted(o.routeStarted)
@@ -172,6 +180,36 @@ export default function MyOrderDetailsPage() {
     }
   }
 
+  // 🔧 FIX: Get phone number from multiple sources
+  const getCustomerPhone = () => {
+    // Try multiple phone number fields
+    const phoneOptions = [
+      user?.phoneNumber,
+      user?.phone,
+      user?.telephoneNumber,
+      order?.phone,
+      order?.telephoneNumber,
+      order?.customerPhone,
+    ]
+
+    const phone = phoneOptions.find((p) => p && p.trim() !== "")
+    console.log("📞 Phone debug:", {
+      userPhoneNumber: user?.phoneNumber,
+      userPhone: user?.phone,
+      userTelephoneNumber: user?.telephoneNumber,
+      orderPhone: order?.phone,
+      orderTelephoneNumber: order?.telephoneNumber,
+      orderCustomerPhone: order?.customerPhone,
+      selectedPhone: phone,
+    })
+
+    return phone || ""
+  }
+
+  const getCustomerName = () => {
+    return user?.name || user?.userName || order?.customerName || "Customer"
+  }
+
   if (loading || !order) {
     return (
       <Box minH="100vh" bgGradient={bgGradient} display="flex" alignItems="center" justifyContent="center">
@@ -213,7 +251,7 @@ export default function MyOrderDetailsPage() {
               <Text fontSize="lg" fontWeight="medium" color={textColor}>
                 Welcome back,{" "}
                 <Text as="span" color="blue.500" fontWeight="bold">
-                  {user.name}
+                  {getCustomerName()}
                 </Text>
                 ! 👋
               </Text>
@@ -241,6 +279,12 @@ export default function MyOrderDetailsPage() {
                   >
                     {order.status}
                   </Badge>
+                  {/* Add scheduling status */}
+                  <SchedulingStatusBadge
+                    status={order.schedulingStatus}
+                    scheduledTime={order.scheduledPickupTime || order.scheduledDeliveryTime}
+                    compact
+                  />
                 </HStack>
               </VStack>
 
@@ -454,6 +498,53 @@ export default function MyOrderDetailsPage() {
                 </CardBody>
               </Card>
             )}
+          </CardBody>
+        </Card>
+
+        {/* Scheduling Section */}
+        <Card mb={6} bg={cardBg} shadow="xl" borderRadius="2xl" overflow="hidden">
+          <CardBody>
+            <VStack spacing={6}>
+              <HStack justify="space-between" w="full">
+                <HStack>
+                  <Text fontSize="2xl">📅</Text>
+                  <Heading size="lg" color="purple.500">
+                    Scheduling
+                  </Heading>
+                </HStack>
+                {!showSchedulingForm && (
+                  <Button
+                    leftIcon={<Text fontSize="lg">➕</Text>}
+                    colorScheme="blue"
+                    size="sm"
+                    onClick={() => setShowSchedulingForm(true)}
+                    borderRadius="full"
+                  >
+                    Schedule Service
+                  </Button>
+                )}
+              </HStack>
+
+              {showSchedulingForm ? (
+                <SchedulingRequestForm
+                  orderId={order.id}
+                  customerPhone={getCustomerPhone()}
+                  customerName={getCustomerName()}
+                  onRequestCreated={(newRequest) => {
+                    setSchedulingRequests((prev) => [newRequest, ...prev])
+                    setShowSchedulingForm(false)
+                    toast({
+                      status: "success",
+                      title: "🎉 Scheduling request submitted!",
+                      description: "We'll confirm your time slot shortly via SMS",
+                    })
+                  }}
+                  onCancel={() => setShowSchedulingForm(false)}
+                />
+              ) : (
+                <SchedulingRequestsList orderId={order.id} onNewRequest={() => setShowSchedulingForm(true)} />
+              )}
+            </VStack>
           </CardBody>
         </Card>
 

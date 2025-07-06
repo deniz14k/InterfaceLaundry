@@ -217,6 +217,21 @@ export default function TopBar() {
                   Route Planner
                 </Button>
               </Tooltip>
+              <Tooltip label="Manage Scheduling Requests" hasArrow>
+                <Button
+                  leftIcon={<Text fontSize="lg">📅</Text>}
+                  size="md"
+                  variant="ghost"
+                  color={textColor}
+                  _hover={{ bg: hoverBg, transform: "translateY(-1px)" }}
+                  transition="all 0.2s"
+                  borderRadius="xl"
+                  fontWeight="medium"
+                  onClick={() => navigate("/scheduling-management")}
+                >
+                  Scheduling
+                </Button>
+              </Tooltip>
             </>
           )}
         </HStack>
@@ -269,6 +284,54 @@ export default function TopBar() {
               </HStack>
             </MenuButton>
             <MenuList bg="white" color="gray.800" border="none" shadow="xl" borderRadius="xl" p={2} minW="200px">
+              {/* Customer Menu Items */}
+              {user.role === "Customer" && (
+                <>
+                  <MenuItem
+                    icon={<Text fontSize="lg">📅</Text>}
+                    borderRadius="lg"
+                    _hover={{ bg: "blue.50", color: "blue.600" }}
+                    fontWeight="medium"
+                    onClick={() => navigate("/my-orders")}
+                  >
+                    Schedule Services
+                  </MenuItem>
+                  <MenuItem
+                    icon={<Text fontSize="lg">👤</Text>}
+                    borderRadius="lg"
+                    _hover={{ bg: "gray.50", color: "gray.600" }}
+                    fontWeight="medium"
+                    onClick={() => navigate("/profile")}
+                  >
+                    My Profile
+                  </MenuItem>
+                </>
+              )}
+
+              {/* Staff Menu Items */}
+              {user.role !== "Customer" && (
+                <>
+                  <MenuItem
+                    icon={<Text fontSize="lg">📅</Text>}
+                    borderRadius="lg"
+                    _hover={{ bg: "blue.50", color: "blue.600" }}
+                    fontWeight="medium"
+                    onClick={() => navigate("/scheduling-management")}
+                  >
+                    Scheduling Management
+                  </MenuItem>
+                  <MenuItem
+                    icon={<Text fontSize="lg">⚙️</Text>}
+                    borderRadius="lg"
+                    _hover={{ bg: "gray.50", color: "gray.600" }}
+                    fontWeight="medium"
+                    onClick={() => navigate("/admin")}
+                  >
+                    Admin Panel
+                  </MenuItem>
+                </>
+              )}
+
               <MenuDivider />
               <MenuItem
                 icon={<Text fontSize="lg">🚪</Text>}
