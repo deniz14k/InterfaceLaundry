@@ -177,11 +177,23 @@ export async function createOrder(orderData) {
 }
 
 /** ------------------------------- PUT update order */
-export async function updateOrder(id, orderData) {
+export async function updateOrder(id, formData) {
+  const body = {
+    ...formData,
+    addressComponents: {
+      street:       formData.deliveryStreet,
+      streetNumber: formData.deliveryStreetNumber,
+      city:         formData.deliveryCity,
+      apartmentNumber:
+        formData.apartmentNumber !== ""
+          ? Number(formData.apartmentNumber)
+          : null
+    }
+  };
   const res = await fetch(`${API_BASE_URL}/api/orders/${id}`, {
-    method: 'PUT',
+    method:  'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(orderData),
+    body:    JSON.stringify(body)
   });
   if (!res.ok) throw new Error('Failed to update order.');
   return res;

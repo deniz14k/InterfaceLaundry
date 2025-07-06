@@ -32,7 +32,9 @@ import {
 } from "@chakra-ui/react"
 import { LoadScript, GoogleMap, Marker, DirectionsService } from "@react-google-maps/api"
 import { AuthContext } from "../contexts/authContext"
+import { itemProgressService } from "../services/itemProgressService"
 import { getRouteById as fetchRoute } from "../services/RouteService"
+import { getOrderById } from "../services/ordersService"
 
 const MAP_LIBRARIES = ["places"]
 
@@ -40,16 +42,17 @@ export default function MyOrderDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useContext(AuthContext)
-
+const [orders, setOrders] = useState([])
   const [order, setOrder] = useState(null)
   const [routeId, setRouteId] = useState(null)
   const [routeStarted, setRouteStarted] = useState(false)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
-
+const [progressData, setProgressData] = useState({})
   const [driverLoc, setDriverLoc] = useState(null)
   const [stops, setStops] = useState([])
   const [eta, setEta] = useState("")
   const [loading, setLoading] = useState(true)
+  
 
   const DRIVER_PHONE = "+40123456789"
 
@@ -291,6 +294,10 @@ export default function MyOrderDetailsPage() {
             )}
           </CardBody>
         </Card>
+
+
+            
+
 
         {/* Items Section */}
         <Card mb={6} bg={cardBg} shadow="xl" borderRadius="2xl" overflow="hidden">
