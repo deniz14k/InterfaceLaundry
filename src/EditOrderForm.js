@@ -64,37 +64,72 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
   // Initialize form data when order prop changes
   useEffect(() => {
     if (order) {
-      // Parse existing address into components
-      const addressComponents = parseAddressComponents(order.deliveryAddress, order.apartmentNumber)
-
-      // Load completion status from localStorage
-      const items = order.items || []
-      const itemsWithCompletion = items.map((item, index) => ({
-        ...item,
-        isCompleted: itemProgressService.isItemCompleted(order.id, index),
-      }))
-
-      setFormData({
-        id: order.id,
-        customerId: order.customerId || "",
-        telephoneNumber: order.telephoneNumber || "",
-        receivedDate: order.receivedDate ? new Date(order.receivedDate).toISOString().slice(0, 16) : "",
-        status: order.status || "Pending",
-        serviceType: order.serviceType || "Office",
-        observation: order.observation || "",
-        deliveryCity: addressComponents.deliveryCity,
-        deliveryStreet: addressComponents.deliveryStreet,
-        deliveryStreetNumber: addressComponents.deliveryStreetNumber,
-        apartmentNumber: addressComponents.apartmentNumber,
-        items:
-          itemsWithCompletion.length > 0
-            ? itemsWithCompletion
-            : [{ type: "Carpet", length: "", width: "", price: 0, isCompleted: false }],
-      })
-
-      setItemCount(itemsWithCompletion.length > 0 ? itemsWithCompletion.length : 1)
+    let addressComponents = {
+      deliveryCity: "",
+      deliveryStreet: "",
+      deliveryStreetNumber: "",
+      apartmentNumber: "",
     }
-  }, [order])
+
+    // Since we know the format is "Strada Lunii 22, Cluj-Napoca, Romania"
+    if (order.deliveryAddress && typeof order.deliveryAddress === 'string') {
+      const fullAddress = order.deliveryAddress.trim()
+      
+      // Split by comma to get parts: ["Strada Lunii 22", "Cluj-Napoca", "Romania"]
+      const addressParts = fullAddress.split(',').map(part => part.trim())
+      
+      if (addressParts.length >= 2) {
+        // First part contains street name + number: "Strada Lunii 22"
+        const streetPart = addressParts[0]
+        
+        // Use regex to separate street name from number
+        // This matches: "Strada Lunii 22" -> groups: ["Strada Lunii", "22"]
+        const streetMatch = streetPart.match(/^(.+?)\s+(\d+[a-zA-Z]*)$/)
+        
+        if (streetMatch) {
+          addressComponents.deliveryStreet = streetMatch[1].trim() // "Strada Lunii"
+          addressComponents.deliveryStreetNumber = streetMatch[2].trim() // "22"
+        } else {
+          // If regex fails, put everything in street name
+          addressComponents.deliveryStreet = streetPart
+          addressComponents.deliveryStreetNumber = ""
+        }
+        
+        // Second part is the city: "Cluj-Napoca"
+        addressComponents.deliveryCity = addressParts[1].trim()
+      }
+      
+      // Apartment number comes from separate field
+      addressComponents.apartmentNumber = order.apartmentNumber || ""
+    }
+
+    console.log("🎯 Parsed addressComponents:", addressComponents)
+
+    // Load completion status from localStorage
+    const items = order.items || []
+    const itemsWithCompletion = items.map((item, index) => ({
+      ...item,
+      isCompleted: itemProgressService.isItemCompleted(order.id, index),
+    }))
+
+    setFormData({
+      id: order.id,
+      customerId: order.customerId || "",
+      telephoneNumber: order.telephoneNumber || "",
+      receivedDate: order.receivedDate ? new Date(order.receivedDate).toISOString().slice(0, 16) : "",
+      status: order.status || "Pending",
+      serviceType: order.serviceType || "Office",
+      observation: order.observation || "",
+      deliveryCity: addressComponents.deliveryCity,
+      deliveryStreet: addressComponents.deliveryStreet,
+      deliveryStreetNumber: addressComponents.deliveryStreetNumber,
+      apartmentNumber: addressComponents.apartmentNumber,
+      items: itemsWithCompletion.length > 0 ? itemsWithCompletion : [{ type: "Carpet", length: "", width: "", price: 0, isCompleted: false }],
+    })
+
+    setItemCount(itemsWithCompletion.length > 0 ? itemsWithCompletion.length : 1)
+  }
+}, [order])
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))

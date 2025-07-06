@@ -177,26 +177,39 @@ export async function createOrder(orderData) {
 }
 
 /** ------------------------------- PUT update order */
-export async function updateOrder(id, formData) {
-  const body = {
-    ...formData,
-    addressComponents: {
-      street:       formData.deliveryStreet,
-      streetNumber: formData.deliveryStreetNumber,
-      city:         formData.deliveryCity,
-      apartmentNumber:
-        formData.apartmentNumber !== ""
-          ? Number(formData.apartmentNumber)
-          : null
-    }
-  };
+export async function updateOrder(id, orderData) {
+  // Transform order data to match new API format with address components
+  const transformedData = {
+    id: id,
+    customerId: orderData.customerId,
+    telephoneNumber: orderData.telephoneNumber,
+    receivedDate: orderData.receivedDate,
+    status: orderData.status,
+    serviceType: orderData.serviceType,
+    observation: orderData.observation || "",
+    items: orderData.items || [],
+
+    // Handle address components for pickup/delivery
+    ...(orderData.serviceType === "PickupDelivery" && {
+      addressComponents: {
+        street: orderData.deliveryStreet || "",
+        streetNumber: orderData.deliveryStreetNumber || "",
+        city: orderData.deliveryCity || "",
+        apartmentNumber: orderData.apartmentNumber || null,
+      },
+    }),
+  }
+
   const res = await fetch(`${API_BASE_URL}/api/orders/${id}`, {
-    method:  'PUT',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body:    JSON.stringify(body)
-  });
-  if (!res.ok) throw new Error('Failed to update order.');
-  return res;
+    method: "PUT",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(transformedData),
+  })
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(`Failed to update order: ${errorText}`)
+  }
+  return res
 }
 
 /** ------------------------------- DELETE order */

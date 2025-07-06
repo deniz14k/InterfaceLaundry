@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from "react"
 import { getEligibleOrders, createRoute, autoGenerateRoute } from "../services/RouteService"
 import { useNavigate } from "react-router-dom"
@@ -20,13 +22,12 @@ import {
   Divider,
   FormControl,
   FormLabel,
-  CheckboxGroup,
   Stack,
 } from "@chakra-ui/react"
 
 export default function ManualRoutesPage() {
   const [eligibleOrders, setEligibleOrders] = useState([])
-  const [selectedIds, setSelectedIds] = useState([])
+  const [selectedIds, setSelectedIds] = useState([]) // Keep as numbers for API
   const [driverName, setDriverName] = useState("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const navigate = useNavigate()
@@ -74,17 +75,34 @@ export default function ManualRoutesPage() {
       toast({ status: "warning", title: "Please enter driver name" })
       return
     }
+
+    console.log("🚀 Creating route with selectedIds:", selectedIds)
+
     try {
       const { id: routeId } = await createRoute({ driverName, orderIds: selectedIds })
       toast({ status: "success", title: "✨ Route created successfully!" })
       navigate(`/driver/route/${routeId}`)
     } catch (e) {
+      console.error("Route creation error:", e)
       toast({ status: "error", title: "Manual creation failed: " + e.message })
     }
   }
 
-  // Toggle selection
-  const toggle = (id) => setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  // Fixed toggle function - ensure consistent number handling
+  const handleOrderToggle = (orderId) => {
+    const numericId = typeof orderId === "string" ? Number.parseInt(orderId) : orderId
+
+    setSelectedIds((prev) => {
+      const isSelected = prev.includes(numericId)
+      if (isSelected) {
+        // Remove from selection
+        return prev.filter((id) => id !== numericId)
+      } else {
+        // Add to selection
+        return [...prev, numericId]
+      }
+    })
+  }
 
   return (
     <Box minH="100vh" bgGradient={bgGradient}>
@@ -117,7 +135,6 @@ export default function ManualRoutesPage() {
                   Automatic Route Generation
                 </Heading>
               </HStack>
-              
 
               <HStack spacing={6} wrap="wrap" justify="center">
                 <FormControl maxW="200px">
@@ -234,57 +251,61 @@ export default function ManualRoutesPage() {
                 ) : (
                   <Card bg="gray.50" borderRadius="xl" maxH="400px" overflowY="auto">
                     <CardBody p={6}>
-                      <CheckboxGroup value={selectedIds} onChange={setSelectedIds}>
-                        <Stack spacing={4}>
-                          {eligibleOrders.map((order) => (
-                            <Card
-                              key={order.id}
-                              bg="white"
-                              shadow="sm"
-                              borderRadius="lg"
-                              _hover={{ shadow: "md", transform: "translateY(-1px)" }}
-                              transition="all 0.2s"
-                            >
-                              <CardBody p={4}>
-                                <Flex justify="space-between" align="center">
-                                  <HStack spacing={4}>
-                                    <Checkbox
-                                      value={order.id.toString()}
-                                      isChecked={selectedIds.includes(order.id)}
-                                      onChange={() => toggle(order.id)}
-                                      colorScheme="blue"
-                                      size="lg"
-                                    />
-                                    <VStack align="start" spacing={1}>
-                                      <HStack>
-                                        <Badge colorScheme="blue" px={2} py={1} borderRadius="full">
-                                          #{order.id}
-                                        </Badge>
-                                        <Text fontWeight="bold" color={textColor}>
-                                          {order.customerName || `Customer #${order.customerId}`}
-                                        </Text>
-                                      </HStack>
-                                      <Text color="gray.500" fontSize="sm">
-                                        📍 {order.deliveryAddress}
+                      <Stack spacing={4}>
+                        {eligibleOrders.map((order) => (
+                          <Card
+                            key={order.id}
+                            bg="white"
+                            shadow="sm"
+                            borderRadius="lg"
+                            _hover={{ shadow: "md", transform: "translateY(-1px)" }}
+                            transition="all 0.2s"
+                          >
+                            <CardBody p={4}>
+                              <Flex justify="space-between" align="center">
+                                <HStack spacing={4}>
+                                  <Checkbox
+                                    isChecked={selectedIds.includes(order.id)}
+                                    onChange={() => handleOrderToggle(order.id)}
+                                    colorScheme="blue"
+                                    size="lg"
+                                  />
+                                  <VStack align="start" spacing={1}>
+                                    <HStack>
+                                      <Badge colorScheme="blue" px={2} py={1} borderRadius="full">
+                                        #{order.id}
+                                      </Badge>
+                                      <Text fontWeight="bold" color={textColor}>
+                                        {order.customerName || `Customer #${order.customerId}`}
                                       </Text>
-                                      <Text color="gray.500" fontSize="sm">
-                                        📞 {order.telephoneNumber}
-                                      </Text>
-                                    </VStack>
-                                  </HStack>
-                                  <Badge colorScheme="green" px={3} py={1} borderRadius="full">
-                                    💰 {order.price || "N/A"} RON
-                                  </Badge>
-                                </Flex>
-                              </CardBody>
-                            </Card>
-                          ))}
-                        </Stack>
-                      </CheckboxGroup>
+                                    </HStack>
+                                    <Text color="gray.500" fontSize="sm">
+                                      📍 {order.deliveryAddress}
+                                    </Text>
+                                    <Text color="gray.500" fontSize="sm">
+                                      📞 {order.telephoneNumber}
+                                    </Text>
+                                  </VStack>
+                                </HStack>
+                                <Badge colorScheme="green" px={3} py={1} borderRadius="full">
+                                  💰 {order.price || "N/A"} RON
+                                </Badge>
+                              </Flex>
+                            </CardBody>
+                          </Card>
+                        ))}
+                      </Stack>
                     </CardBody>
                   </Card>
                 )}
               </Box>
+
+              {/* Debug info - remove this after testing */}
+              {selectedIds.length > 0 && (
+                <Text fontSize="sm" color="gray.500">
+                  Debug: Selected IDs = [{selectedIds.join(", ")}]
+                </Text>
+              )}
 
               {/* Create Button */}
               <Button

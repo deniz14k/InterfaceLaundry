@@ -512,11 +512,13 @@ export default function DriverRoutePage() {
                 bg="white"
                 _focus={{ borderColor: accentColor, shadow: "outline" }}
               >
-                {pendingOrders.map((order) => (
-                  <option key={order.id} value={order.id}>
-                    #{order.id} — {order.customerName} ({order.price} RON)
-                  </option>
-                ))}
+                {pendingOrders
+                  .filter(order => !orders.some(routeOrder => routeOrder.id === order.id))
+                  .map((order) => (
+                    <option key={order.id} value={order.id}>
+                      #{order.id} | {order.customerName || `Customer #${order.customerId}`} | 📍 {order.deliveryAddress || order.address} | 💰 {order.price || 'N/A'} RON
+                    </option>
+                  ))}
               </Select>
               <Button
                 leftIcon={<Text fontSize="xl">➕</Text>}
@@ -539,11 +541,16 @@ export default function DriverRoutePage() {
               </Button>
             </HStack>
 
-            {pendingOrders.length === 0 && (
+            {pendingOrders.filter(order => !orders.some(routeOrder => routeOrder.id === order.id)).length === 0 && (
               <Text color="gray.500" textAlign="center" mt={4}>
-                No pending orders available to add
+                {pendingOrders.length === 0 
+                  ? "No pending orders available to add" 
+                  : "All pending orders are already in this route"}
               </Text>
             )}
+            <Text fontSize="sm" color="gray.500" mt={2}>
+              Debug: {pendingOrders.length} total pending, {pendingOrders.filter(order => !orders.some(routeOrder => routeOrder.id === order.id)).length} available to add
+            </Text>
           </CardBody>
         </Card>
       </Container>
