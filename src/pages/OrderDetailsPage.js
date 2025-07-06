@@ -31,6 +31,8 @@ import {
   useToast,
 } from "@chakra-ui/react"
 
+import QRCode from "qrcode"
+
 function OrderDetailsPage() {
   const { id } = useParams()
   const [order, setOrder] = useState(null)
@@ -86,6 +88,139 @@ function OrderDetailsPage() {
     }
   }
 
+// Function to print individual item label
+  const printItemLabel = async () => {
+    try {
+      // Generate QR code for order details URL
+      const orderDetailsUrl = `${window.location.origin}/orders/${order.id}`
+      const qrCodeDataUrl = await QRCode.toDataURL(orderDetailsUrl, {
+        width: 120,
+        margin: 1,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      })
+
+      const itemCount = order.items?.length || 0
+      const labelId = `${order.id}/${itemCount}`
+
+      // Create label content optimized for 7cm x 8cm
+      const labelContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Item Label - ${labelId}</title>
+        <style>
+          @page {
+            size: 7cm 8cm;
+            margin: 0.3cm;
+          }
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0.2cm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 7.4cm;
+            box-sizing: border-box;
+          }
+          .label-container {
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 0.3cm;
+            box-sizing: border-box;
+          }
+          .header {
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.2cm;
+          }
+          .order-info {
+            font-size: 24px;
+            font-weight: bold;
+            color: #000;
+            margin: 0.3cm 0;
+            letter-spacing: 1px;
+          }
+          .qr-code {
+            margin: 0.2cm 0;
+          }
+          .qr-code img {
+            width: 3cm;
+            height: 3cm;
+          }
+          .footer {
+            font-size: 10px;
+            color: #666;
+            margin-top: 0.2cm;
+          }
+          .service-type {
+            font-size: 11px;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 0.1cm 0;
+          }
+          @media print { 
+            body { margin: 0; }
+            .label-container { border: 2px solid #333; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="label-container">
+          <div class="header">🧺 LAUNDRYPRO</div>
+          
+          <div class="order-info">${labelId}</div>
+          
+          <div class="service-type">${order.serviceType}</div>
+          
+          <div class="qr-code">
+            <img src="${qrCodeDataUrl}" alt="QR Code for Order ${order.id}" />
+          </div>
+          
+          <div class="footer">
+            <div>Customer: #${order.customerId}</div>
+            <div>${new Date(order.receivedDate).toLocaleDateString()}</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+
+      const printWindow = window.open("", "_blank")
+      printWindow.document.write(labelContent)
+      printWindow.document.close()
+      printWindow.print()
+
+      toast({
+        status: "success",
+        title: "🏷️ Label ready!",
+        description: `Item label for ${labelId} sent to printer`,
+      })
+    } catch (error) {
+      console.error("Error generating label:", error)
+      toast({
+        status: "error",
+        title: "❌ Label error",
+        description: "Failed to generate item label",
+      })
+    }
+  }
+
+
+
+
   if (loading) {
     return (
       <Box minH="100vh" bgGradient={bgGradient} display="flex" alignItems="center" justifyContent="center">
@@ -111,13 +246,30 @@ function OrderDetailsPage() {
           <Box h="4px" bgGradient="linear(to-r, blue.400, purple.400, pink.400)" />
           <CardBody p={8}>
             <Flex justify="space-between" align="center" mb={6}>
-              <VStack align="start" spacing={2}>
+              <VStack align="start" spacing={5}>
                 <HStack>
                   <Text fontSize="3xl">📄</Text>
                   <Heading size="xl" bgGradient="linear(to-r, blue.400, purple.500)" bgClip="text">
                     Order #{order.id}
+
                   </Heading>
                 </HStack>
+
+
+<Button
+                  leftIcon={<Text fontSize="xl"></Text>}
+                  colorScheme="blue"
+                  size="lg"
+                 onClick={() => navigate(`/edit/${order.id}`)}
+                  borderRadius="full"
+                  px={8}
+                  py={4}
+                  fontSize="lg"
+                  fontWeight="bold"
+                >
+                  Edit Order 
+                </Button>
+
                 <HStack>
                   <Badge
                     colorScheme={getStatusColor(order.status)}
@@ -344,6 +496,8 @@ function OrderDetailsPage() {
                   Print Options
                 </Heading>
               </HStack>
+
+
 
               <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} w="full">
                 <Button
@@ -650,6 +804,23 @@ LaundryPro Team
                   Email Details
                 </Button>
               </SimpleGrid>
+
+{/* New Print Item Label Button */}
+                <Button
+                  leftIcon={<Text fontSize="lg">🏷️</Text>}
+                  colorScheme="teal"
+                  size="lg"
+                  onClick={printItemLabel}
+                  borderRadius="xl"
+                  px={6}
+                  py={4}
+                  fontSize="md"
+                  fontWeight="bold"
+                  _hover={{ transform: "translateY(-2px)", shadow: "lg" }}
+                  transition="all 0.2s"
+                >
+                  Print Item Label
+                </Button>
 
               <Text fontSize="sm" color="gray.500" textAlign="center">
                 Choose your preferred format for printing or sharing order details
