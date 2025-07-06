@@ -34,7 +34,6 @@ import { LoadScript, GoogleMap, Marker, DirectionsService } from "@react-google-
 import { AuthContext } from "../contexts/authContext"
 import { itemProgressService } from "../services/itemProgressService"
 import { getRouteById as fetchRoute } from "../services/RouteService"
-import { getOrderById } from "../services/ordersService"
 
 const MAP_LIBRARIES = ["places"]
 
@@ -42,17 +41,32 @@ export default function MyOrderDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useContext(AuthContext)
-const [orders, setOrders] = useState([])
+  const [orders, setOrders] = useState([])
   const [order, setOrder] = useState(null)
   const [routeId, setRouteId] = useState(null)
   const [routeStarted, setRouteStarted] = useState(false)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
-const [progressData, setProgressData] = useState({})
+  const [progressData, setProgressData] = useState({})
   const [driverLoc, setDriverLoc] = useState(null)
   const [stops, setStops] = useState([])
   const [eta, setEta] = useState("")
   const [loading, setLoading] = useState(true)
-  
+
+  // Load item progress data
+  useEffect(() => {
+    if (order?.id && order?.items?.length) {
+      const stats = itemProgressService.getCompletionStats(order.id, order.items.length)
+      setProgressData(stats)
+
+      // Refresh progress every 10 seconds
+      const interval = setInterval(() => {
+        const updatedStats = itemProgressService.getCompletionStats(order.id, order.items.length)
+        setProgressData(updatedStats)
+      }, 10000)
+
+      return () => clearInterval(interval)
+    }
+  }, [order?.id, order?.items?.length])
 
   const DRIVER_PHONE = "+40123456789"
 
@@ -295,21 +309,69 @@ const [progressData, setProgressData] = useState({})
           </CardBody>
         </Card>
 
-
-            
-
-
-        {/* Items Section */}
+        {/* Items Section with Progress */}
         <Card mb={6} bg={cardBg} shadow="xl" borderRadius="2xl" overflow="hidden">
           <CardBody>
-            <Heading size="lg" mb={4} color="purple.500">
-              🛍️ Order Items
-            </Heading>
+            <Flex justify="space-between" align="center" mb={4}>
+              <Heading size="lg" color="purple.500">
+                🛍️ Order Items ({order.items.length})
+              </Heading>
+              {progressData.total > 0 && (
+                <VStack align="end" spacing={1}>
+                  <Text fontSize="sm" color="gray.500">
+                    Progress: {progressData.completed}/{progressData.total}
+                  </Text>
+                  <Progress
+                    value={progressData.percentage}
+                    colorScheme={progressData.percentage === 100 ? "green" : "blue"}
+                    size="sm"
+                    borderRadius="full"
+                    w="120px"
+                  />
+                </VStack>
+              )}
+            </Flex>
+
+            {progressData.total > 0 && (
+              <Card bg="blue.50" borderRadius="lg" mb={4} borderWidth="1px" borderColor="blue.200">
+                <CardBody p={4}>
+                  <HStack justify="center" spacing={6}>
+                    <VStack spacing={1}>
+                      <Text fontSize="2xl" fontWeight="bold" color="green.500">
+                        {progressData.completed}
+                      </Text>
+                      <Text fontSize="xs" color="green.600" fontWeight="medium">
+                        ✅ Completed
+                      </Text>
+                    </VStack>
+                    <VStack spacing={1}>
+                      <Text fontSize="2xl" fontWeight="bold" color="blue.500">
+                        {progressData.total - progressData.completed}
+                      </Text>
+                      <Text fontSize="xs" color="blue.600" fontWeight="medium">
+                        ⏳ In Progress
+                      </Text>
+                    </VStack>
+                    <VStack spacing={1}>
+                      <Text fontSize="2xl" fontWeight="bold" color="purple.500">
+                        {progressData.percentage}%
+                      </Text>
+                      <Text fontSize="xs" color="purple.600" fontWeight="medium">
+                        📊 Complete
+                      </Text>
+                    </VStack>
+                  </HStack>
+                </CardBody>
+              </Card>
+            )}
 
             <Box overflowX="auto">
               <Table variant="simple" size="lg">
                 <Thead>
                   <Tr bg="gray.50">
+                    <Th fontSize="md" color="gray.600">
+                      Status
+                    </Th>
                     <Th fontSize="md" color="gray.600">
                       Type
                     </Th>
@@ -322,37 +384,76 @@ const [progressData, setProgressData] = useState({})
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {order.items.map((item, index) => (
-                    <Tr
-                      key={item.id}
-                      _hover={{ bg: "blue.50", transform: "scale(1.01)", transition: "all 0.2s" }}
-                      borderRadius="lg"
-                    >
-                      <Td fontWeight="medium" color={textColor}>
-                        <HStack>
-                          <Text fontSize="lg">📦</Text>
-                          <Text>{item.type}</Text>
-                        </HStack>
-                      </Td>
-                      <Td color={textColor}>
-                        {item.length && item.width ? (
-                          <Badge colorScheme="blue" variant="subtle" px={2} py={1}>
-                            {item.length}×{item.width}
-                          </Badge>
-                        ) : (
-                          <Text color="gray.400">–</Text>
-                        )}
-                      </Td>
-                      <Td isNumeric>
-                        <Text fontWeight="bold" color="green.500" fontSize="lg">
-                          {item.price} RON
-                        </Text>
-                      </Td>
-                    </Tr>
-                  ))}
+                  {order.items.map((item, index) => {
+                    const isCompleted = itemProgressService.isItemCompleted(order.id, index)
+                    return (
+                      <Tr
+                        key={item.id}
+                        bg={isCompleted ? "green.50" : "white"}
+                        _hover={{
+                          bg: isCompleted ? "green.100" : "blue.50",
+                          transform: "scale(1.01)",
+                          transition: "all 0.2s",
+                        }}
+                        borderRadius="lg"
+                        borderWidth="2px"
+                        borderColor={isCompleted ? "green.200" : "transparent"}
+                      >
+                        <Td>
+                          <HStack spacing={2}>
+                            {isCompleted ? (
+                              <Badge colorScheme="green" px={2} py={1} borderRadius="full" fontSize="xs">
+                                ✅ Done
+                              </Badge>
+                            ) : (
+                              <Badge colorScheme="blue" px={2} py={1} borderRadius="full" fontSize="xs">
+                                ⏳ Processing
+                              </Badge>
+                            )}
+                          </HStack>
+                        </Td>
+                        <Td fontWeight="medium" color={textColor}>
+                          <HStack>
+                            <Text fontSize="lg">📦</Text>
+                            <Text>{item.type}</Text>
+                          </HStack>
+                        </Td>
+                        <Td color={textColor}>
+                          {item.length && item.width ? (
+                            <Badge colorScheme="blue" variant="subtle" px={2} py={1}>
+                              {item.length}×{item.width}
+                            </Badge>
+                          ) : (
+                            <Text color="gray.400">–</Text>
+                          )}
+                        </Td>
+                        <Td isNumeric>
+                          <Text fontWeight="bold" color="green.500" fontSize="lg">
+                            {item.price} RON
+                          </Text>
+                        </Td>
+                      </Tr>
+                    )
+                  })}
                 </Tbody>
               </Table>
             </Box>
+
+            {progressData.percentage === 100 && (
+              <Card bg="green.50" borderRadius="lg" mt={4} borderWidth="2px" borderColor="green.200">
+                <CardBody p={4} textAlign="center">
+                  <VStack spacing={2}>
+                    <Text fontSize="3xl">🎉</Text>
+                    <Text fontSize="lg" fontWeight="bold" color="green.600">
+                      All items completed!
+                    </Text>
+                    <Text color="green.500" fontSize="sm">
+                      Your order is ready for pickup/delivery
+                    </Text>
+                  </VStack>
+                </CardBody>
+              </Card>
+            )}
           </CardBody>
         </Card>
 
@@ -374,8 +475,6 @@ const [progressData, setProgressData] = useState({})
                 </HStack>
 
                 <Progress value={75} colorScheme="blue" size="lg" borderRadius="full" w="full" bg="gray.100" />
-
-                
 
                 {process.env.REACT_APP_GOOGLE_MAPS_KEY ? (
                   <LoadScript
