@@ -43,7 +43,7 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
       apartmentNumber: "",
     },
     observation: "",
-    items: [{ type: "Carpet", length: "", width: "", price: 0 }],
+    items: [{ type: "Carpet", length: 1, width: 1, price: 0, isMeasured: false }],
   })
 
   const [itemCount, setItemCount] = useState(1)
@@ -76,9 +76,10 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
       for (let i = 0; i < itemsToAdd; i++) {
         currentItems.push({
           type: "Carpet",
-          length: "",
-          width: "",
+          length: 1, // Set default 1x1 measurements
+          width: 1,
           price: 0,
+          isMeasured: false, // Add measured tracking
         })
       }
     } else if (value < currentItems.length) {
@@ -91,7 +92,27 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
 
   const handleItemChange = (idx, field, value) => {
     const newItems = [...formData.items]
-    newItems[idx][field] = value
+    newItems[idx] = { ...newItems[idx], [field]: value }
+
+    if (field === "type") {
+      if (value === "Blanket") {
+        // Fixed price rule
+        if (formData.serviceType === "PickupDelivery") newItems[idx].price = 50
+        else newItems[idx].price = 45
+        // Dimensions not applicable
+        newItems[idx].length = null
+        newItems[idx].width = null
+      } else if (value === "Carpet") {
+        // Keep dimensions editable; optional: reset price so it can be calculated later
+        newItems[idx].price = newItems[idx].price || 0
+      } else {
+        // Other future types: default safe values
+        newItems[idx].length = null
+        newItems[idx].width = null
+        newItems[idx].price = newItems[idx].price || 0
+      }
+    }
+
     setFormData((prev) => ({ ...prev, items: newItems }))
   }
 
@@ -132,7 +153,7 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
       }
     }
 
-    // Validate carpet dimensions
+    /* Validate carpet dimensions
     formData.items.forEach((item, idx) => {
       if (item.type === "Carpet") {
         if (!item.length || Number.parseFloat(item.length) <= 0) {
@@ -143,6 +164,7 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
         }
       }
     })
+        */
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -198,11 +220,11 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
       onOrderCreated()
     } catch (error) {
       console.error(error)
-      toast({
+      /*toast({
         status: "error",
         title: "Failed to create order",
         description: "Please try again or contact support",
-      })
+      })*/
     } finally {
       setIsSubmitting(false)
     }
@@ -219,6 +241,20 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
       default:
         return "🧺"
     }
+  }
+
+  const PREDEFINED_MEASUREMENTS = [
+    { length: 3, width: 2, label: "3x2" },
+    { length: 1.5, width: 2.3, label: "1.5x2.3" },
+    { length: 1.7, width: 2.5, label: "1.7x2.5" },
+    { length: 0.8, width: 1.5, label: "0.8x1.5" },
+    { length: 1, width: 1, label: "1x1" },
+  ]
+
+  const applyPredefinedMeasurement = (idx, length, width) => {
+    const newItems = [...formData.items]
+    newItems[idx] = { ...newItems[idx], length, width }
+    setFormData((prev) => ({ ...prev, items: newItems }))
   }
 
   return (
@@ -550,6 +586,41 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
                                   />
                                   <FormErrorMessage>{errors[`item_${idx}_width`]}</FormErrorMessage>
                                 </FormControl>
+
+                                <FormControl colSpan={{ base: 1, md: 2 }}>
+                                  <FormLabel fontSize="sm" fontWeight="bold" color={textColor}>
+                                    ⚡ Quick Select
+                                  </FormLabel>
+                                  <HStack spacing={1} wrap="wrap">
+                                    {PREDEFINED_MEASUREMENTS.map((measurement) => (
+                                      <Tooltip key={measurement.label} label={`Set to ${measurement.label}m`}>
+                                        <Button
+                                          size="xs"
+                                          variant={
+                                            item.length === measurement.length && item.width === measurement.width
+                                              ? "solid"
+                                              : "outline"
+                                          }
+                                          colorScheme={
+                                            item.length === measurement.length && item.width === measurement.width
+                                              ? "blue"
+                                              : "gray"
+                                          }
+                                          onClick={() =>
+                                            applyPredefinedMeasurement(idx, measurement.length, measurement.width)
+                                          }
+                                          borderRadius="full"
+                                          fontSize="xs"
+                                          px={2}
+                                          py={1}
+                                          fontWeight="bold"
+                                        >
+                                          {measurement.label}
+                                        </Button>
+                                      </Tooltip>
+                                    ))}
+                                  </HStack>
+                                </FormControl>
                               </>
                             )}
 
@@ -569,6 +640,7 @@ export default function CreateOrderForm({ onOrderCreated, onCancel }) {
                                 border="2px solid"
                                 borderColor="gray.200"
                                 _focus={{ borderColor: "blue.400" }}
+                                isReadOnly={item.type === "Blanket"}
                               />
                             </FormControl>
                           </SimpleGrid>

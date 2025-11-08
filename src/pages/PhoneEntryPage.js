@@ -38,6 +38,7 @@ export default function PhoneEntryPage() {
   const textColor = useColorModeValue("gray.700", "gray.200")
 
   const handleSend = async () => {
+    
     if (!phone.trim()) {
       toast({ status: "warning", title: "Please enter your phone number" })
       return
@@ -106,7 +107,7 @@ export default function PhoneEntryPage() {
                       </InputLeftElement>
                       <Input
                         type="tel"
-                        placeholder="+40740012345"
+                        placeholder="0740012345"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         onKeyPress={handleKeyPress}
@@ -125,9 +126,6 @@ export default function PhoneEntryPage() {
                         _hover={{ borderColor: "gray.300" }}
                       />
                     </InputGroup>
-                    <Text fontSize="sm" color="gray.500" mt={2}>
-                      Include country code (e.g., +40 for Romania)
-                    </Text>
                   </FormControl>
 
                   <Button

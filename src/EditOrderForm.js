@@ -31,7 +31,7 @@ import {
   Flex,
   Tooltip,
 } from "@chakra-ui/react"
-import { updateOrder, parseAddressComponents } from "./services/ordersService"
+import { updateOrder } from "./services/ordersService"
 import { itemProgressService } from "./services/itemProgressService"
 import AddressInputComponent from "./components/address-input-component"
 
@@ -64,72 +64,83 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
   // Initialize form data when order prop changes
   useEffect(() => {
     if (order) {
-    let addressComponents = {
-      deliveryCity: "",
-      deliveryStreet: "",
-      deliveryStreetNumber: "",
-      apartmentNumber: "",
-    }
-
-    // Since we know the format is "Strada Lunii 22, Cluj-Napoca, Romania"
-    if (order.deliveryAddress && typeof order.deliveryAddress === 'string') {
-      const fullAddress = order.deliveryAddress.trim()
-      
-      // Split by comma to get parts: ["Strada Lunii 22", "Cluj-Napoca", "Romania"]
-      const addressParts = fullAddress.split(',').map(part => part.trim())
-      
-      if (addressParts.length >= 2) {
-        // First part contains street name + number: "Strada Lunii 22"
-        const streetPart = addressParts[0]
-        
-        // Use regex to separate street name from number
-        // This matches: "Strada Lunii 22" -> groups: ["Strada Lunii", "22"]
-        const streetMatch = streetPart.match(/^(.+?)\s+(\d+[a-zA-Z]*)$/)
-        
-        if (streetMatch) {
-          addressComponents.deliveryStreet = streetMatch[1].trim() // "Strada Lunii"
-          addressComponents.deliveryStreetNumber = streetMatch[2].trim() // "22"
-        } else {
-          // If regex fails, put everything in street name
-          addressComponents.deliveryStreet = streetPart
-          addressComponents.deliveryStreetNumber = ""
-        }
-        
-        // Second part is the city: "Cluj-Napoca"
-        addressComponents.deliveryCity = addressParts[1].trim()
+      const addressComponents = {
+        deliveryCity: "",
+        deliveryStreet: "",
+        deliveryStreetNumber: "",
+        apartmentNumber: "",
       }
-      
-      // Apartment number comes from separate field
-      addressComponents.apartmentNumber = order.apartmentNumber || ""
+
+      // Since we know the format is "Strada Lunii 22, Cluj-Napoca, Romania"
+      if (order.deliveryAddress && typeof order.deliveryAddress === "string") {
+        const fullAddress = order.deliveryAddress.trim()
+
+        // Split by comma to get parts: ["Strada Lunii 22", "Cluj-Napoca", "Romania"]
+        const addressParts = fullAddress.split(",").map((part) => part.trim())
+
+        if (addressParts.length >= 2) {
+          // First part contains street name + number: "Strada Lunii 22"
+          const streetPart = addressParts[0]
+
+          // Use regex to separate street name from number
+          // This matches: "Strada Lunii 22" -> groups: ["Strada Lunii", "22"]
+          const streetMatch = streetPart.match(/^(.+?)\s+(\d+[a-zA-Z]*)$/)
+
+          if (streetMatch) {
+            addressComponents.deliveryStreet = streetMatch[1].trim() // "Strada Lunii"
+            addressComponents.deliveryStreetNumber = streetMatch[2].trim() // "22"
+          } else {
+            // If regex fails, put everything in street name
+            addressComponents.deliveryStreet = streetPart
+            addressComponents.deliveryStreetNumber = ""
+          }
+
+          // Second part is the city: "Cluj-Napoca"
+          addressComponents.deliveryCity = addressParts[1].trim()
+        }
+
+        // Apartment number comes from separate field
+        addressComponents.apartmentNumber = order.apartmentNumber || ""
+      }
+
+      console.log("🎯 Parsed addressComponents:", addressComponents)
+
+      // Load completion status from localStorage
+      const items = order.items || []
+      const itemsWithCompletion = items.map((item, index) => {
+        const storageKey = `order_${order.id}_item_${index}_measured`
+        const storedMeasured = localStorage.getItem(storageKey)
+        const isMeasured = storedMeasured !== null ? JSON.parse(storedMeasured) : item.isMeasured || false
+
+        return {
+          ...item,
+          id: item.id || 0, // Preserve the database ID
+          isCompleted: itemProgressService.isItemCompleted(order.id, index),
+          isMeasured,
+        }
+      })
+
+      setFormData({
+        id: order.id,
+        customerId: order.customerId || "",
+        telephoneNumber: order.telephoneNumber || "",
+        receivedDate: order.receivedDate ? new Date(order.receivedDate).toISOString().slice(0, 16) : "",
+        status: order.status || "Pending",
+        serviceType: order.serviceType || "Office",
+        observation: order.observation || "",
+        deliveryCity: addressComponents.deliveryCity,
+        deliveryStreet: addressComponents.deliveryStreet,
+        deliveryStreetNumber: addressComponents.deliveryStreetNumber,
+        apartmentNumber: addressComponents.apartmentNumber,
+        items:
+          itemsWithCompletion.length > 0
+            ? itemsWithCompletion
+            : [{ type: "Carpet", length: "", width: "", price: 0, isMeasured: false, isCompleted: false }],
+      })
+
+      setItemCount(itemsWithCompletion.length > 0 ? itemsWithCompletion.length : 1)
     }
-
-    console.log("🎯 Parsed addressComponents:", addressComponents)
-
-    // Load completion status from localStorage
-    const items = order.items || []
-    const itemsWithCompletion = items.map((item, index) => ({
-      ...item,
-      isCompleted: itemProgressService.isItemCompleted(order.id, index),
-    }))
-
-    setFormData({
-      id: order.id,
-      customerId: order.customerId || "",
-      telephoneNumber: order.telephoneNumber || "",
-      receivedDate: order.receivedDate ? new Date(order.receivedDate).toISOString().slice(0, 16) : "",
-      status: order.status || "Pending",
-      serviceType: order.serviceType || "Office",
-      observation: order.observation || "",
-      deliveryCity: addressComponents.deliveryCity,
-      deliveryStreet: addressComponents.deliveryStreet,
-      deliveryStreetNumber: addressComponents.deliveryStreetNumber,
-      apartmentNumber: addressComponents.apartmentNumber,
-      items: itemsWithCompletion.length > 0 ? itemsWithCompletion : [{ type: "Carpet", length: "", width: "", price: 0, isCompleted: false }],
-    })
-
-    setItemCount(itemsWithCompletion.length > 0 ? itemsWithCompletion.length : 1)
-  }
-}, [order])
+  }, [order])
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -160,27 +171,33 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
   const handleItemCountChange = (value) => {
     setItemCount(value)
 
-    // Adjust items array to match the count
-    const currentItems = [...formData.items]
+    setFormData((prev) => {
+      const currentItems = [...prev.items]
+      const difference = value - currentItems.length
 
-    if (value > currentItems.length) {
-      // Add new items
-      const itemsToAdd = value - currentItems.length
-      for (let i = 0; i < itemsToAdd; i++) {
-        currentItems.push({
-          type: "Carpet",
-          length: "",
-          width: "",
-          price: 0,
-          isCompleted: false,
-        })
+      if (difference > 0) {
+        // Add new items
+        for (let i = 0; i < difference; i++) {
+          const existingNegativeIds = currentItems.filter((item) => item.id < 0).map((item) => item.id)
+          const nextNegativeId = existingNegativeIds.length > 0 ? Math.min(...existingNegativeIds) - 1 : -1
+
+          currentItems.push({
+            id: nextNegativeId,
+            type: "Carpet",
+            length: 1,
+            width: 1,
+            price: 0,
+            isMeasured: false,
+            isCompleted: false,
+          })
+        }
+      } else if (difference < 0) {
+        // Remove excess items
+        currentItems.splice(value)
       }
-    } else if (value < currentItems.length) {
-      // Remove excess items
-      currentItems.splice(value)
-    }
 
-    setFormData((prev) => ({ ...prev, items: currentItems }))
+      return { ...prev, items: currentItems }
+    })
   }
 
   const addItem = () => {
@@ -189,11 +206,61 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
     handleItemCountChange(newCount)
   }
 
-  const updateItem = (index, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      items: prev.items.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
-    }))
+  const updateItem = (index, field, rawValue) => {
+    setFormData((prev) => {
+      const items = [...prev.items]
+      const item = { ...items[index] }
+
+      if (field === "type") {
+        item.type = rawValue
+        if (rawValue === "Blanket") {
+          if (formData.serviceType === "PickupDelivery") item.price = 50
+          else item.price = 45
+          item.length = null
+          item.width = null
+        } else if (rawValue === "Carpet") {
+          item.length = item.length ?? ""
+          item.width = item.width ?? ""
+          item.price = item.price ?? 0
+        } else {
+          item.length = null
+          item.width = null
+          item.price = item.price ?? 0
+        }
+      } else if (field === "length" || field === "width") {
+        const v = Number.parseFloat(rawValue)
+        item[field] = Number.isFinite(v) ? v : null
+      } else if (field === "price") {
+        const v = Number.parseFloat(rawValue)
+        item.price = Number.isFinite(v) ? v : 0
+      } else if (field === "isMeasured") {
+        item.isMeasured = rawValue
+        const storageKey = `order_${formData.id}_item_${index}_measured`
+        localStorage.setItem(storageKey, JSON.stringify(rawValue))
+      } else {
+        item[field] = rawValue
+      }
+
+      items[index] = item
+      return { ...prev, items }
+    })
+  }
+
+  const PREDEFINED_MEASUREMENTS = [
+    { length: 3, width: 2, label: "3x2" },
+    { length: 1.5, width: 2.3, label: "1.5x2.3" },
+    { length: 1.7, width: 2.5, label: "1.7x2.5" },
+    { length: 0.8, width: 1.5, label: "0.8x1.5" },
+    { length: 1, width: 1, label: "1x1" },
+    { length: 2, width: 1.5, label: "2x1.5" },
+    { length: 2.5, width: 2, label: "2.5x2" },
+    { length: 4, width: 3, label: "4x3" },
+    { length: 5, width: 4, label: "5x4" },
+  ]
+
+  const applyPredefinedMeasurement = (idx, length, width) => {
+    updateItem(idx, "length", length.toString())
+    updateItem(idx, "width", width.toString())
   }
 
   const removeItem = (index) => {
@@ -290,9 +357,6 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
 
     if (!validateForm()) {
       toast({
-        title: "Validation Error",
-        description: "Please fix the errors in the form",
-        status: "error",
         duration: 3000,
         isClosable: true,
       })
@@ -302,11 +366,19 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
     setIsSubmitting(true)
 
     try {
+      // New items keep their unique negative IDs, backend will handle them as inserts
+      const itemsForBackend = formData.items.map((item) => ({
+        ...item,
+        id: item.id, // Keep all IDs as-is (negative for new, positive for existing)
+      }))
+
       const orderData = {
         ...formData,
-        // Ensure apartment number is sent as integer or null
+        items: itemsForBackend,
         apartmentNumber: formData.apartmentNumber ? Number.parseInt(formData.apartmentNumber) : null,
       }
+
+      console.log("[v0] Sending order data with items:", orderData.items)
 
       await updateOrder(formData.id, orderData)
 
@@ -653,18 +725,50 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
                               <>
                                 <FormControl isInvalid={errors[`item_${index}_length`]}>
                                   <FormLabel fontSize="sm">Length (m)</FormLabel>
-                                  <Input
-                                    type="number"
-                                    step="0.1"
-                                    value={item.length}
-                                    onChange={(e) =>
-                                      updateItem(index, "length", Number.parseFloat(e.target.value) || "")
-                                    }
-                                    placeholder="2.5"
-                                    size="md"
-                                    borderRadius="lg"
-                                    bg="white"
-                                  />
+                                  <VStack align="start" spacing={2}>
+                                    <Input
+                                      type="number"
+                                      step="0.1"
+                                      value={item.length ?? ""}
+                                      onChange={(e) =>
+                                        updateItem(index, "length", Number.parseFloat(e.target.value) || "")
+                                      }
+                                      placeholder="2.5"
+                                      size="md"
+                                      borderRadius="lg"
+                                      bg="white"
+                                    />
+                                    <HStack spacing={1} wrap="wrap" w="full">
+                                      {PREDEFINED_MEASUREMENTS.map((measurement) => (
+                                        <Tooltip key={measurement.label} label={`${measurement.label}m`} fontSize="xs">
+                                          <Button
+                                            size="xs"
+                                            variant={
+                                              item.length === measurement.length && item.width === measurement.width
+                                                ? "solid"
+                                                : "outline"
+                                            }
+                                            colorScheme={
+                                              item.length === measurement.length && item.width === measurement.width
+                                                ? "blue"
+                                                : "gray"
+                                            }
+                                            onClick={() =>
+                                              applyPredefinedMeasurement(index, measurement.length, measurement.width)
+                                            }
+                                            borderRadius="full"
+                                            fontSize="xs"
+                                            px={2}
+                                            py={1}
+                                            fontWeight="bold"
+                                            _hover={{ transform: "scale(1.05)" }}
+                                          >
+                                            {measurement.label}
+                                          </Button>
+                                        </Tooltip>
+                                      ))}
+                                    </HStack>
+                                  </VStack>
                                   <FormErrorMessage>{errors[`item_${index}_length`]}</FormErrorMessage>
                                 </FormControl>
 
@@ -673,7 +777,7 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
                                   <Input
                                     type="number"
                                     step="0.1"
-                                    value={item.width}
+                                    value={item.width ?? ""}
                                     onChange={(e) =>
                                       updateItem(index, "width", Number.parseFloat(e.target.value) || "")
                                     }
@@ -684,6 +788,20 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
                                   />
                                   <FormErrorMessage>{errors[`item_${index}_width`]}</FormErrorMessage>
                                 </FormControl>
+
+                                <FormControl>
+                                  <Checkbox
+                                    isChecked={item.isMeasured || false}
+                                    onChange={(e) => updateItem(index, "isMeasured", e.target.checked)}
+                                    colorScheme="green"
+                                    size="lg"
+                                    mt={4}
+                                  >
+                                    <Text fontSize="sm" fontWeight="bold" color="green.600">
+                                      ✓ Measured
+                                    </Text>
+                                  </Checkbox>
+                                </FormControl>
                               </>
                             )}
 
@@ -692,8 +810,9 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={item.price}
+                                value={item.price ?? ""}
                                 onChange={(e) => updateItem(index, "price", Number.parseFloat(e.target.value) || 0)}
+                                isReadOnly={item.type === "Blanket"} // lock fixed price
                                 placeholder="0.00"
                                 size="md"
                                 borderRadius="lg"

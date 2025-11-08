@@ -32,7 +32,7 @@ export async function createSchedulingRequest(requestData) {
 
   if (!res.ok) {
     const errorText = await res.text()
-    throw new Error(errorText || "Failed to create scheduling request")
+    
   }
   return res.json()
 }

@@ -258,9 +258,9 @@ function EditOrderPage() {
                   }}
                   onCancel={() => {
                     toast({
-                      status: "info",
-                      title: "Edit cancelled",
-                      description: "No changes were made to the order",
+                      //status: "info",
+                     // title: "Edit cancelled",
+                     // description: "No changes were made to the order",
                     })
                     navigate("/")
                   }}

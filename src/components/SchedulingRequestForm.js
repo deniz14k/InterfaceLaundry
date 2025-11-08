@@ -117,13 +117,6 @@ export default function SchedulingRequestForm({ orderId, customerPhone, customer
         onRequestCreated(result)
       }
     } catch (error) {
-      console.error("Error creating scheduling request:", error)
-      toast({
-        status: "error",
-        title: "Failed to submit request",
-        description: error.message || "Please try again",
-        duration: 5000,
-      })
     } finally {
       setIsSubmitting(false)
     }
@@ -176,7 +169,7 @@ export default function SchedulingRequestForm({ orderId, customerPhone, customer
                 <option value="Delivery">🚚 Delivery to your location</option>
               </Select>
             </FormControl>
-
+            
             {/* Time Slot Selection */}
             <Box>
               <TimeSlotPicker

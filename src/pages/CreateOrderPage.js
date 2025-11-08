@@ -40,9 +40,6 @@ function CreateOrderPage() {
                   Create New Order
                 </Heading>
               </HStack>
-              <Text color={textColor} fontSize="lg" textAlign="center">
-                Start a new laundry order with our premium service
-              </Text>
               <Button
                 leftIcon={<Text fontSize="xl">←</Text>}
                 onClick={() => navigate(-1)}

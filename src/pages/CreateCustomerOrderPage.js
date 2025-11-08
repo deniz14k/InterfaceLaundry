@@ -152,7 +152,7 @@ export default function CreateCustomerOrderPage() {
       }
     } catch (err) {
       console.error(err)
-      toast({ status: "error", title: "Failed to create order", description: "Please try again" })
+      //toast({ status: "error", title: "Failed to create order", description: "Please try again" })
     } finally {
       setLoading(false)
     }

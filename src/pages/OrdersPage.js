@@ -223,6 +223,18 @@ function OrdersPage() {
     }
   }
 
+  const areAllItemsMeasured = (order) => {
+    if (!order.items || order.items.length === 0) return false
+
+    return order.items.every((item, index) => {
+      if (item.type !== "Carpet") return true // Non-carpet items don't need measurement
+
+      const storageKey = `order_${order.id}_item_${index}_measured`
+      const stored = localStorage.getItem(storageKey)
+      return stored !== null ? JSON.parse(stored) : item.isMeasured || false
+    })
+  }
+
   const overallProgress = getProgressSummary()
 
   return (
@@ -481,6 +493,18 @@ function OrdersPage() {
                                 w="120px"
                                 bg="gray.200"
                               />
+                            )}
+                            {areAllItemsMeasured(order) && (
+                              <Badge
+                                colorScheme="green"
+                                px={2}
+                                py={0.5}
+                                borderRadius="full"
+                                fontSize="xs"
+                                fontWeight="bold"
+                              >
+                                ✅ All Measured
+                              </Badge>
                             )}
                           </VStack>
                         </Td>
