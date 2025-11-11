@@ -70,18 +70,30 @@ function OrdersPage() {
       .catch(console.error)
   }
 
+  // Load orders on component mount only
   useEffect(() => {
     loadOrders()
+  }, [])
 
-    // Set up interval to refresh progress data every 5 seconds
+  // Refresh progress data every 5 seconds
+  useEffect(() => {
+    if (orders.length === 0) return
+
+    const allProgress = {}
+    orders.forEach((order) => {
+      const itemCount = order.items?.length || 0
+      allProgress[order.id] = itemProgressService.getCompletionStats(order.id, itemCount)
+    })
+    setProgressData(allProgress)
+
     const interval = setInterval(() => {
       if (orders.length > 0) {
-        const allProgress = {}
+        const latestProgress = {}
         orders.forEach((order) => {
           const itemCount = order.items?.length || 0
-          allProgress[order.id] = itemProgressService.getCompletionStats(order.id, itemCount)
+          latestProgress[order.id] = itemProgressService.getCompletionStats(order.id, itemCount)
         })
-        setProgressData(allProgress)
+        setProgressData(latestProgress)
       }
     }, 5000)
 
@@ -449,7 +461,7 @@ function OrdersPage() {
                           <HStack>
                             <Text fontSize="lg">📋</Text>
                             <Text fontWeight="bold" color="blue.500">
-                              #{order.id}
+                              #{order.orderNumber}
                             </Text>
                           </HStack>
                         </Td>

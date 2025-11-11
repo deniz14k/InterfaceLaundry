@@ -53,7 +53,7 @@ export default function DriverRoutePage() {
   const [isOptimized, setIsOptimized] = useState(false)
 
   // HQ coordinates
-  const HQ = { lat: 46.7551903, lng: 23.5665899 }
+  const HQ = { lat: 46.517151, lng: 24.5223398 }
 
   // Color mode values
   const bgGradient = useColorModeValue(
@@ -392,7 +392,7 @@ export default function DriverRoutePage() {
                         <VStack align="start" spacing={1}>
                           <HStack>
                             <Badge colorScheme="blue" px={2} py={1} borderRadius="full">
-                              Stop #{idx + 1}
+                              Order #{order.orderNumber || order.id}
                             </Badge>
                             {order.isCompleted && (
                               <Badge colorScheme="green" px={2} py={1} borderRadius="full">
@@ -401,7 +401,7 @@ export default function DriverRoutePage() {
                             )}
                           </HStack>
                           <Text fontSize="lg" fontWeight="bold" color={textColor}>
-                            {order.customerName}
+                            {order.customer || "Customer"}
                           </Text>
                           <VStack align="start" spacing={1}>
                             <Text color="gray.500" fontSize="sm">
@@ -513,10 +513,11 @@ export default function DriverRoutePage() {
                 _focus={{ borderColor: accentColor, shadow: "outline" }}
               >
                 {pendingOrders
-                  .filter(order => !orders.some(routeOrder => routeOrder.id === order.id))
+                  .filter((order) => !orders.some((routeOrder) => routeOrder.id === order.id))
                   .map((order) => (
                     <option key={order.id} value={order.id}>
-                      #{order.id} | {order.customerName || `Customer #${order.customerId}`} | 📍 {order.deliveryAddress || order.address} | 💰 {order.price || 'N/A'} RON
+                      #{order.orderNumber || order.id} | {order.customer || `Customer #${order.customerId}`} | 📍{" "}
+                      {order.address || order.deliveryAddress} | 💰 {order.price || "N/A"} RON
                     </option>
                   ))}
               </Select>
@@ -541,15 +542,17 @@ export default function DriverRoutePage() {
               </Button>
             </HStack>
 
-            {pendingOrders.filter(order => !orders.some(routeOrder => routeOrder.id === order.id)).length === 0 && (
+            {pendingOrders.filter((order) => !orders.some((routeOrder) => routeOrder.id === order.id)).length === 0 && (
               <Text color="gray.500" textAlign="center" mt={4}>
-                {pendingOrders.length === 0 
-                  ? "No pending orders available to add" 
+                {pendingOrders.length === 0
+                  ? "No pending orders available to add"
                   : "All pending orders are already in this route"}
               </Text>
             )}
             <Text fontSize="sm" color="gray.500" mt={2}>
-              Debug: {pendingOrders.length} total pending, {pendingOrders.filter(order => !orders.some(routeOrder => routeOrder.id === order.id)).length} available to add
+              Debug: {pendingOrders.length} total pending,{" "}
+              {pendingOrders.filter((order) => !orders.some((routeOrder) => routeOrder.id === order.id)).length}{" "}
+              available to add
             </Text>
           </CardBody>
         </Card>

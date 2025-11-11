@@ -1,36 +1,27 @@
-// src/services/RouteService.js
-
-import { jwtDecode } from "jwt-decode";  // dacă ai nevoie de decode la token, altfel poţi elimina
-const API_BASE_URL = 'https://localhost:7223';
-
+const API_BASE_URL = "https://localhost:7223"
 
 function authHeaders() {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token")
   return token
-    ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-    : { 'Content-Type': 'application/json' };
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+    : { "Content-Type": "application/json" }
 }
-
-
 
 /**
  * DELETE /api/deliveryroute/{routeId}/order/{orderId}
  * Removes an order from a route.
  */
 export async function removeOrderFromRoute(routeId, orderId) {
-  const res = await fetch(
-    `${API_BASE_URL}/api/deliveryroute/${routeId}/order/${orderId}`,
-    {
-      method: 'DELETE',
-      headers: authHeaders()
-    }
-  );
+  const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}/order/${orderId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to remove order from route: ${res.status} ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to remove order from route: ${res.status} ${text}`)
   }
   // no JSON returned on 204
-  return;
+  return
 }
 
 /**
@@ -38,170 +29,143 @@ export async function removeOrderFromRoute(routeId, orderId) {
  * Adds an order to a route, returns the new stop object.
  */
 export async function addOrderToRoute(routeId, orderId) {
-  const res = await fetch(
-    `${API_BASE_URL}/api/deliveryroute/${routeId}/order`,
-    {
-      method: 'POST',
-      headers: {
-        ...authHeaders(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ orderId })
-    }
-  );
+  const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}/order`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ orderId }),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to add order to route: ${res.status} ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to add order to route: ${res.status} ${text}`)
   }
-  return res.json();
+  return res.json()
 }
 
-
-
-
-
 export async function startRoute(routeId) {
-  const res = await fetch(
-    `${API_BASE_URL}/api/deliveryroute/${routeId}/start`,
-    {
-      method: 'POST',
-      headers: authHeaders()
-    }
-  );
+  const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}/start`, {
+    method: "POST",
+    headers: authHeaders(),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to start route: ${res.status} ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to start route: ${res.status} ${text}`)
   }
   // no JSON body coming back on a 204
-  return;
+  return
 }
 
 export async function stopRoute(routeId) {
-  const res = await fetch(
-    `${API_BASE_URL}/api/deliveryroute/${routeId}/stop`,
-    {
-      method: 'POST',
-      headers: authHeaders()
-    }
-  );
+  const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}/stop`, {
+    method: "POST",
+    headers: authHeaders(),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to stop route: ${res.status} ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to stop route: ${res.status} ${text}`)
   }
-  return;
+  return
 }
 
 export async function reportTracking(routeId, lat, lng) {
   // we don’t need the JSON response here
-  await fetch(
-    `${API_BASE_URL}/api/tracking/report`,
-    {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ routeId, lat, lng })
-    }
-  );
+  await fetch(`${API_BASE_URL}/api/tracking/report`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ routeId, lat, lng }),
+  })
 }
-
-
-
-
-
-
 
 /** ------------------------------- GET latest driver position for a route */
 export async function getTrackingLatest(routeId) {
   const res = await fetch(`${API_BASE_URL}/api/tracking/${routeId}/latest`, {
-    headers: authHeaders()
-  });
-  if (res.status === 204) return null;     // not started yet
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();  // { lat, lng, timestamp }
+    headers: authHeaders(),
+  })
+  if (res.status === 204) return null // not started yet
+  if (!res.ok) throw new Error(await res.text())
+  return res.json() // { lat, lng, timestamp }
 }
-
-
-
 
 // DELETE rută
 export async function deleteRoute(routeId) {
   const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}`, {
-    method: 'DELETE',
-    headers: authHeaders()
-  });
-  if (!res.ok) throw new Error(await res.text());
+    method: "DELETE",
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw new Error(await res.text())
 }
 
-export async function autoGenerateRoute({ date, driverName }) {
+export async function autoGenerateRoute({ fromDate, toDate, driverName }) {
   const res = await fetch(`${API_BASE_URL}/api/planner/auto-generate`, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ date, driverName })
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ fromDate, toDate, driverName }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
-
-
 
 /** ------------------------------- GET comenzile eligibile */
 export async function getEligibleOrders() {
   const res = await fetch(`${API_BASE_URL}/api/deliveryroute/eligible-orders`, {
-    headers: authHeaders()
-  });
+    headers: authHeaders(),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to fetch eligible orders: ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to fetch eligible orders: ${text}`)
   }
-  return res.json();
+  return res.json()
 }
 
 /** ------------------------------- GET toate rutele */
 export async function getAllRoutes() {
   const res = await fetch(`${API_BASE_URL}/api/deliveryroute`, {
-    headers: authHeaders()
-  });
+    headers: authHeaders(),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to fetch routes: ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to fetch routes: ${text}`)
   }
-  return res.json();
+  return res.json()
 }
 
 /** ------------------------------- POST creare rută manuală */
 export async function createRoute({ driverName, orderIds }) {
   const res = await fetch(`${API_BASE_URL}/api/planner/create-route`, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ driverName, orderIds })
-  });
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ driverName, orderIds }),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to create route: ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to create route: ${text}`)
   }
-  return res.json(); // { id, driverName, orders }
+  return res.json() // { id, driverName, orders }
 }
 
 /** ------------------------------- GET detalii rută */
 export async function getRouteById(routeId) {
   const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}`, {
-    headers: authHeaders()
-  });
+    headers: authHeaders(),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to fetch route details: ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to fetch route details: ${text}`)
   }
-  return res.json();
+  return res.json()
 }
 
 /** ------------------------------- PATCH marchează comanda finalizată */
 export async function markOrderCompleted(routeId, orderId) {
   const res = await fetch(`${API_BASE_URL}/api/deliveryroute/${routeId}/complete/${orderId}`, {
-    method: 'PATCH',
-    headers: authHeaders()
-  });
+    method: "PATCH",
+    headers: authHeaders(),
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to mark order completed: ${text}`);
+    const text = await res.text()
+    throw new Error(`Failed to mark order completed: ${text}`)
   }
-  return res.json();
+  return res.json()
 }

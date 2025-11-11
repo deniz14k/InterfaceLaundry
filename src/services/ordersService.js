@@ -233,12 +233,14 @@ export async function verifyOtp(phone, code, name) {
 }
 
 /** ------------------------------- GET filtered orders */
-export async function getFilteredOrders({ searchTerm, status, fromDate, toDate }) {
+export async function getFilteredOrders({ searchTerm, searchType,status, fromDate, toDate, serviceType }) {
   const params = new URLSearchParams();
   if (searchTerm) params.append('searchTerm', searchTerm);
+  if (searchType) params.append("searchType", searchType);
   if (status)     params.append('status', status);
   if (fromDate)   params.append('fromDate', fromDate);
   if (toDate)     params.append('toDate', toDate);
+  if (serviceType) params.append("serviceType", serviceType)
 
   const res = await fetch(`${API_BASE_URL}/api/orders?${params.toString()}`, {
     headers: authHeaders(),

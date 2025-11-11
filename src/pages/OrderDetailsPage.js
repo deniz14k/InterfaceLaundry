@@ -250,7 +250,7 @@ function OrderDetailsPage() {
                 <HStack>
                   <Text fontSize="3xl">📄</Text>
                   <Heading size="xl" bgGradient="linear(to-r, blue.400, purple.500)" bgClip="text">
-                    Order #{order.id}
+                    Order #{order.orderNumber}
 
                   </Heading>
                 </HStack>
@@ -527,7 +527,7 @@ function OrderDetailsPage() {
                       <body>
                         <div class="header">
                           <h1>🧺 LaundryPro</h1>
-                          <h2>Order #${order.id}</h2>
+                          <h2>Order #${order.orderNumber}</h2>
                           <p>Premium Laundry Service</p>
                         </div>
                         
@@ -760,7 +760,7 @@ Generated: ${new Date().toLocaleString()}
                     const emailBody = `
 Hello,
 
-Here are the details for Order #${order.id}:
+Here are the details for Order #${order.orderNumber}:
 
 Customer: #${order.customerId}
 Phone: ${order.telephoneNumber}

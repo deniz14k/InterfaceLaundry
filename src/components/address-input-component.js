@@ -59,7 +59,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
   const [addressData, setAddressData] = useState({
     street: value.street || "",
     streetNumber: value.streetNumber || "",
-    city: value.city || "Cluj-Napoca",
+    city: value.city || "Târgu Mureș",
     apartmentNumber: value.apartmentNumber || "",
   })
 
@@ -72,7 +72,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
     setAddressData({
       street: value.street || "",
       streetNumber: value.streetNumber || "",
-      city: value.city || "Cluj-Napoca",
+      city: value.city || "Târgu Mureș",
       apartmentNumber: value.apartmentNumber || "",
     })
   }, [value])
@@ -100,7 +100,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
           <HStack w="full">
             <Text fontSize="xl">🏠</Text>
             <Heading size="md" color={textColor}>
-              Delivery Address
+              Adresa de livrare
             </Heading>
             {isRequired && (
               <Badge colorScheme="red" px={2} py={1} borderRadius="full" fontSize="xs">
@@ -114,7 +114,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
             {/* Street Name */}
             <FormControl isInvalid={errors.street} isRequired={isRequired}>
               <FormLabel color={textColor} fontWeight="bold" fontSize="sm">
-                🛣️ Street Name
+                🛣️ Strada
               </FormLabel>
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
@@ -142,7 +142,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
             {/* Street Number */}
             <FormControl isInvalid={errors.streetNumber} isRequired={isRequired}>
               <FormLabel color={textColor} fontWeight="bold" fontSize="sm">
-                🔢 Street Number
+                🔢 Numarul Strazii
               </FormLabel>
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
@@ -170,7 +170,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
             {/* City */}
             <FormControl isInvalid={errors.city} isRequired={isRequired}>
               <FormLabel color={textColor} fontWeight="bold" fontSize="sm">
-                🏙️ City
+                🏙️ Oras
               </FormLabel>
               <Select
                 value={addressData.city}
@@ -198,7 +198,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
             {/* Apartment Number */}
             <FormControl isInvalid={errors.apartmentNumber}>
               <FormLabel color={textColor} fontWeight="bold" fontSize="sm">
-                🏢 Apartment Number (Optional)
+                🏢 Apartament
               </FormLabel>
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
@@ -231,7 +231,7 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
               <VStack spacing={2}>
                 <HStack>
                   <Text fontSize="sm" fontWeight="bold" color="blue.700">
-                    📋 Full Address Preview:
+                    📋 Adresa Completa:
                   </Text>
                 </HStack>
                 <Text fontSize="sm" color="blue.600" fontWeight="medium" textAlign="center">
@@ -245,11 +245,6 @@ export default function AddressInputComponent({ value = {}, onChange, errors = {
               </VStack>
             </Box>
           )}
-
-          {/* Helper Text */}
-          <Text fontSize="xs" color="gray.500" textAlign="center">
-            💡 We'll use this address for pickup and delivery. The apartment number helps our drivers find you easily!
-          </Text>
         </VStack>
       </CardBody>
     </Card>

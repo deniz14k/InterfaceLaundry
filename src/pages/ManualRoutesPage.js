@@ -29,7 +29,8 @@ export default function ManualRoutesPage() {
   const [eligibleOrders, setEligibleOrders] = useState([])
   const [selectedIds, setSelectedIds] = useState([]) // Keep as numbers for API
   const [driverName, setDriverName] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [fromDate, setFromDate] = useState(new Date().toISOString().split("T")[0])
+  const [toDate, setToDate] = useState(new Date().toISOString().split("T")[0])
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -56,8 +57,12 @@ export default function ManualRoutesPage() {
       toast({ status: "warning", title: "Please enter driver name" })
       return
     }
+    if (fromDate > toDate) {
+      toast({ status: "warning", title: "From date must be before to date" })
+      return
+    }
     try {
-      const { id: routeId } = await autoGenerateRoute({ date, driverName })
+      const { id: routeId } = await autoGenerateRoute({ fromDate, toDate, driverName })
       toast({ status: "success", title: "🚀 Route generated automatically!" })
       navigate(`/driver/route/${routeId}`)
     } catch (e) {
@@ -65,7 +70,6 @@ export default function ManualRoutesPage() {
     }
   }
 
-  // Manual creation
   const handleManual = async () => {
     if (selectedIds.length < 1) {
       toast({ status: "warning", title: "Please select at least one order" })
@@ -76,14 +80,14 @@ export default function ManualRoutesPage() {
       return
     }
 
-    console.log("🚀 Creating route with selectedIds:", selectedIds)
+    console.log("[v0] Creating route with selectedIds:", selectedIds)
 
     try {
       const { id: routeId } = await createRoute({ driverName, orderIds: selectedIds })
-      toast({ status: "success", title: "✨ Route created successfully!" })
+      toast({ status: "success", title: "Route created and optimized!" })
       navigate(`/driver/route/${routeId}`)
     } catch (e) {
-      console.error("Route creation error:", e)
+      console.error("[v0] Route creation error:", e)
       toast({ status: "error", title: "Manual creation failed: " + e.message })
     }
   }
@@ -139,12 +143,26 @@ export default function ManualRoutesPage() {
               <HStack spacing={6} wrap="wrap" justify="center">
                 <FormControl maxW="200px">
                   <FormLabel color={textColor} fontWeight="bold">
-                    📅 Route Date
+                    📅 From Date
                   </FormLabel>
                   <Input
                     type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    borderRadius="xl"
+                    bg="white"
+                    size="lg"
+                  />
+                </FormControl>
+
+                <FormControl maxW="200px">
+                  <FormLabel color={textColor} fontWeight="bold">
+                    📅 To Date
+                  </FormLabel>
+                  <Input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
                     borderRadius="xl"
                     bg="white"
                     size="lg"
@@ -273,17 +291,17 @@ export default function ManualRoutesPage() {
                                   <VStack align="start" spacing={1}>
                                     <HStack>
                                       <Badge colorScheme="blue" px={2} py={1} borderRadius="full">
-                                        #{order.id}
+                                        #{order.orderNumber || order.id}
                                       </Badge>
                                       <Text fontWeight="bold" color={textColor}>
-                                        {order.customerName || `Customer #${order.customerId}`}
+                                        {order.customer || order.customerId}
                                       </Text>
                                     </HStack>
                                     <Text color="gray.500" fontSize="sm">
-                                      📍 {order.deliveryAddress}
+                                      📍 {order.address || order.deliveryAddress}
                                     </Text>
                                     <Text color="gray.500" fontSize="sm">
-                                      📞 {order.telephoneNumber}
+                                      📞 {order.phone || order.telephoneNumber}
                                     </Text>
                                   </VStack>
                                 </HStack>

@@ -51,11 +51,11 @@ export default function RoutesListPage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm(`Delete route #${id}? This action cannot be undone.`)) return
+    if (!window.confirm(`Stergi ruta #${id}?`)) return
     try {
       await deleteRoute(id)
       setRoutes((rs) => rs.filter((r) => r.id !== id))
-      toast({ status: "success", title: "🗑️ Route deleted successfully!" })
+      toast({ status: "success", title: "🗑️ Ruta a fost stearsa cu succes!" })
     } catch (e) {
       console.error("Delete failed:", e)
       toast({ status: "error", title: e.message })
@@ -86,17 +86,17 @@ export default function RoutesListPage() {
                 <HStack>
                   <Text fontSize="4xl">🚚</Text>
                   <Heading size="2xl" bgGradient="linear(to-r, blue.400, purple.500)" bgClip="text">
-                    Delivery Routes
+                    Rute de traseu
                   </Heading>
                 </HStack>
                 <Text color={textColor} fontSize="lg">
-                  Manage and monitor all your delivery routes
+                  Acceseaza si monitorizeaza toate rutele tale
                 </Text>
               </VStack>
 
               <VStack align="end" spacing={2}>
                 <Stat textAlign="right">
-                  <StatLabel color={textColor}>Total Routes</StatLabel>
+                  <StatLabel color={textColor}>Toate Rutele</StatLabel>
                   <StatNumber fontSize="3xl" bgGradient="linear(to-r, green.400, blue.500)" bgClip="text">
                     {routes.length}
                   </StatNumber>
@@ -127,7 +127,7 @@ export default function RoutesListPage() {
                 fontSize="lg"
                 fontWeight="bold"
               >
-                Create New Route
+                Creeaza o ruta noua
               </Button>
             </HStack>
           </CardBody>
@@ -140,10 +140,10 @@ export default function RoutesListPage() {
               <VStack spacing={6}>
                 <Text fontSize="8xl">🗺️</Text>
                 <Heading size="lg" color={textColor}>
-                  No routes created yet
+                  Nu exista rute creeate
                 </Heading>
                 <Text color="gray.500" fontSize="lg">
-                  Create your first delivery route to get started!
+                  Creeaza prima ruta 
                 </Text>
                 <Button
                   leftIcon={<Text fontSize="xl">🚀</Text>}
@@ -156,7 +156,7 @@ export default function RoutesListPage() {
                   fontSize="lg"
                   fontWeight="bold"
                 >
-                  Create First Route
+                  Creeaza ruta 
                 </Button>
               </VStack>
             </CardBody>
@@ -217,11 +217,11 @@ export default function RoutesListPage() {
                         </HStack>
                         <HStack spacing={4}>
                           <Stat size="sm">
-                            <StatLabel color={textColor}>Stops</StatLabel>
+                            <StatLabel color={textColor}>Opriri</StatLabel>
                             <StatNumber color="blue.500">{route.orders?.length || 0}</StatNumber>
                           </Stat>
                           <Stat size="sm">
-                            <StatLabel color={textColor}>Completed</StatLabel>
+                            <StatLabel color={textColor}>Completat</StatLabel>
                             <StatNumber color="green.500">
                               {route.orders?.filter((o) => o.isCompleted).length || 0}
                             </StatNumber>
@@ -262,7 +262,7 @@ export default function RoutesListPage() {
                         px={4}
                         fontWeight="bold"
                       >
-                        Manage Route
+                        Acceseaza Ruta
                       </Button>
                     </VStack>
                   </Flex>

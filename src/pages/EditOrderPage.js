@@ -103,10 +103,9 @@ function EditOrderPage() {
           <VStack spacing={3}>
             <Spinner size="xl" thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" />
             <Text fontSize="xl" fontWeight="bold" color={textColor}>
-              Loading Order Details
+              Detaliile comenzii se incarca
             </Text>
             <Text color="gray.500" textAlign="center">
-              Preparing the edit interface for Order #{id}
             </Text>
           </VStack>
         </VStack>
@@ -147,10 +146,10 @@ function EditOrderPage() {
                     bgClip="text"
                     fontWeight="extrabold"
                   >
-                    Edit Order #{id}
+                    Edit Order #{order.orderNumber}
                   </Heading>
                   <Text color={textColor} fontSize="xl" fontWeight="medium">
-                    Modify order details, update items, and manage status
+                    Modifica detaliile comenzii, masurile, si schimba statusul comenzii 
                   </Text>
                 </VStack>
               </VStack>
@@ -197,7 +196,7 @@ function EditOrderPage() {
                   fontSize="lg"
                   fontWeight="bold"
                 >
-                  Back to Orders
+                  Inapoi la Comenzi
                 </Button>
 
                 {order && (
@@ -220,7 +219,7 @@ function EditOrderPage() {
                     fontSize="lg"
                     fontWeight="bold"
                   >
-                    View Details
+                    Detalii Comanda
                   </Button>
                 )}
               </HStack>
@@ -239,7 +238,7 @@ function EditOrderPage() {
                     <HStack>
                       <Text fontSize="2xl">📝</Text>
                       <Heading size="lg" color={textColor}>
-                        Order Editor
+                        Editor de Comanda
                       </Heading>
                     </HStack>
                 

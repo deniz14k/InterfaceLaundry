@@ -456,7 +456,7 @@ export default function EditOrderForm({ order, onOrderUpdated, onCancel }) {
                   <HStack>
                     <Text fontSize="xl">✏️</Text>
                     <Heading size="lg" color="blue.600">
-                      Edit Order #{order.id}
+                      Edit Order #{order.orderNumber}
                     </Heading>
                   </HStack>
                   <Text fontSize="sm" color="blue.500">

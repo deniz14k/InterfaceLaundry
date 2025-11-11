@@ -30,15 +30,38 @@ function OrderFilters({ onFilter }) {
   const [status, setStatus] = useState("")
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
+  const [serviceType, setServiceType] = useState("")
 
-  // Color mode values
   const cardBg = useColorModeValue("white", "gray.800")
   const textColor = useColorModeValue("gray.700", "gray.200")
   const inputBg = useColorModeValue("gray.50", "gray.700")
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onFilter({ searchTerm, status, fromDate, toDate })
+
+    let searchType = null
+
+    if (searchTerm) {
+      const isNumeric = /^\d+$/.test(searchTerm)
+
+      if (isNumeric) {
+        const num = Number.parseInt(searchTerm)
+        // 1-9999 is valid order number range
+        if (num >= 1 && num <= 9999) {
+          searchType = "orderNumber"
+        } else if (searchTerm.length >= 10) {
+          // 10+ digits is likely a phone number
+          searchType = "phone"
+        } else {
+          searchType = "orderNumber" // default to order number for short numbers
+        }
+      } else {
+        // Text input, search by customer name
+        searchType = "customerName"
+      }
+    }
+
+    onFilter({ searchTerm, searchType, status, fromDate, toDate, serviceType })
   }
 
   const handleClear = () => {
@@ -46,7 +69,8 @@ function OrderFilters({ onFilter }) {
     setStatus("")
     setFromDate("")
     setToDate("")
-    onFilter({ searchTerm: "", status: "", fromDate: "", toDate: "" })
+    setServiceType("")
+    onFilter({ searchTerm: "", status: "", fromDate: "", toDate: "", serviceType: "" })
   }
 
   const getStatusColor = (status) => {
@@ -79,7 +103,7 @@ function OrderFilters({ onFilter }) {
     }
   }
 
-  const hasActiveFilters = searchTerm || status || fromDate || toDate
+  const hasActiveFilters = searchTerm || status || fromDate || toDate || serviceType
 
   return (
     <Card bg={cardBg} shadow="lg" borderRadius="xl" overflow="hidden">
@@ -96,14 +120,14 @@ function OrderFilters({ onFilter }) {
               </HStack>
               {hasActiveFilters && (
                 <Badge colorScheme="blue" px={3} py={1} borderRadius="full" fontSize="sm">
-                  {[searchTerm, status, fromDate, toDate].filter(Boolean).length} active filter
-                  {[searchTerm, status, fromDate, toDate].filter(Boolean).length !== 1 ? "s" : ""}
+                  {[searchTerm, status, fromDate, toDate, serviceType].filter(Boolean).length} active filter
+                  {[searchTerm, status, fromDate, toDate, serviceType].filter(Boolean).length !== 1 ? "s" : ""}
                 </Badge>
               )}
             </Flex>
 
             {/* Search and Status Row */}
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} w="full">
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} w="full">
               <FormControl>
                 <FormLabel color={textColor} fontWeight="bold" fontSize="sm">
                   🔎 Search Orders
@@ -114,7 +138,7 @@ function OrderFilters({ onFilter }) {
                   </InputLeftElement>
                   <Input
                     type="text"
-                    placeholder="Search by Order ID or Phone Number..."
+                    placeholder="Search by Order Number, Phone, or Name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     size="lg"
@@ -131,7 +155,7 @@ function OrderFilters({ onFilter }) {
                   />
                 </InputGroup>
                 <Text fontSize="xs" color="gray.500" mt={1}>
-                  Enter order ID (e.g., "123") or phone number
+                  Enter order number, phone number, or customer name
                 </Text>
               </FormControl>
 
@@ -167,6 +191,47 @@ function OrderFilters({ onFilter }) {
                     </Text>
                     <Badge colorScheme={getStatusColor(status)} px={2} py={1} borderRadius="full" fontSize="xs">
                       {getStatusIcon(status)} {status}
+                    </Badge>
+                  </HStack>
+                )}
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color={textColor} fontWeight="bold" fontSize="sm">
+                  🚚 Order Type
+                </FormLabel>
+                <Select
+                  value={serviceType}
+                  onChange={(e) => setServiceType(e.target.value)}
+                  size="lg"
+                  borderRadius="lg"
+                  bg={inputBg}
+                  border="2px solid"
+                  borderColor="gray.200"
+                  _focus={{
+                    borderColor: "blue.400",
+                    bg: "white",
+                  }}
+                  _hover={{ borderColor: "gray.300" }}
+                  placeholder="All Types"
+                >
+                  <option value="">🌟 All Types</option>
+                  <option value="Office">🏢 Office</option>
+                  <option value="PickupDelivery">🚚 Pickup/Delivery</option>
+                </Select>
+                {serviceType && (
+                  <HStack mt={2}>
+                    <Text fontSize="xs" color="gray.500">
+                      Filtering by:
+                    </Text>
+                    <Badge
+                      colorScheme={serviceType === "Office" ? "purple" : "orange"}
+                      px={2}
+                      py={1}
+                      borderRadius="full"
+                      fontSize="xs"
+                    >
+                      {serviceType === "Office" ? "🏢" : "🚚"} {serviceType}
                     </Badge>
                   </HStack>
                 )}
@@ -249,55 +314,7 @@ function OrderFilters({ onFilter }) {
 
             {/* Action Buttons */}
             <Flex justify="space-between" align="center" w="full" direction={{ base: "column", md: "row" }} gap={4}>
-              <HStack spacing={2}>
-                <Text fontSize="sm" color="gray.500">
-                  Quick Filters:
-                </Text>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  colorScheme="yellow"
-                  onClick={() => {
-                    setStatus("Pending")
-                    onFilter({ searchTerm, status: "Pending", fromDate, toDate })
-                  }}
-                  borderRadius="full"
-                  fontSize="xs"
-                  leftIcon={<Text fontSize="xs">⏳</Text>}
-                >
-                  Pending
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  colorScheme="blue"
-                  onClick={() => {
-                    setStatus("Ready")
-                    onFilter({ searchTerm, status: "Ready", fromDate, toDate })
-                  }}
-                  borderRadius="full"
-                  fontSize="xs"
-                  leftIcon={<Text fontSize="xs">📦</Text>}
-                >
-                  Ready
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  colorScheme="green"
-                  onClick={() => {
-                    const today = new Date().toISOString().split("T")[0]
-                    setFromDate(today)
-                    setToDate(today)
-                    onFilter({ searchTerm, status, fromDate: today, toDate: today })
-                  }}
-                  borderRadius="full"
-                  fontSize="xs"
-                  leftIcon={<Text fontSize="xs">📅</Text>}
-                >
-                  Today
-                </Button>
-              </HStack>
+              <Box />
 
               <HStack spacing={3}>
                 {hasActiveFilters && (
@@ -359,6 +376,17 @@ function OrderFilters({ onFilter }) {
                     {status && (
                       <Badge colorScheme={getStatusColor(status)} px={2} py={1} borderRadius="full" fontSize="xs">
                         {getStatusIcon(status)} Status: {status}
+                      </Badge>
+                    )}
+                    {serviceType && (
+                      <Badge
+                        colorScheme={serviceType === "Office" ? "purple" : "orange"}
+                        px={2}
+                        py={1}
+                        borderRadius="full"
+                        fontSize="xs"
+                      >
+                        {serviceType === "Office" ? "🏢" : "🚚"} Type: {serviceType}
                       </Badge>
                     )}
                     {fromDate && (
